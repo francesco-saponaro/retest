@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE nmaprun>
+<?xml-stylesheet href="file:///usr/share/nmap/nmap.xsl" type="text/xsl"?>
+<!-- Nmap 7.95 scan initiated Sat Nov  7 18:40:02 2026 as: nmap -sS -sU -sV --script vulners,http-title,http-server-header,smb-security-mode -p T:22,80,445,U:161 -oX fixtures/nmap/lab-vms.xml 10.0.10.11 10.0.10.12 -->
+<nmaprun scanner="nmap" args="nmap -sS -sU -sV --script vulners,http-title,http-server-header,smb-security-mode -p T:22,80,445,U:161 -oX fixtures/nmap/lab-vms.xml 10.0.10.11 10.0.10.12" start="1794073202" startstr="Sat Nov  7 18:40:02 2026" version="7.95" xmloutputversion="1.05">
+<scaninfo type="syn" protocol="tcp" numservices="3" services="22,80,445"/>
+<scaninfo type="udp" protocol="udp" numservices="1" services="161"/>
+<verbose level="0"/>
+<debugging level="0"/>
+<host starttime="1794073202" endtime="1794073271"><status state="up" reason="arp-response" reason_ttl="0"/>
+<address addr="10.0.10.11" addrtype="ipv4"/>
+<address addr="08:00:27:4B:9C:E1" addrtype="mac" vendor="Oracle VirtualBox virtual NIC"/>
+<hostnames>
+<hostname name="lab-linux" type="PTR"/>
+</hostnames>
+<ports><port protocol="tcp" portid="22"><state state="open" reason="syn-ack" reason_ttl="64"/><service name="ssh" product="OpenSSH" version="8.9p1 Ubuntu 3ubuntu0.10" extrainfo="Ubuntu Linux; protocol 2.0" ostype="Linux" method="probed" conf="10"><cpe>cpe:/a:openbsd:openssh:8.9p1</cpe><cpe>cpe:/o:linux:linux_kernel</cpe></service><script id="vulners" output="&#xa;  cpe:/a:openbsd:openssh:8.9p1: &#xa;    &#x9;CVE-2023-38408&#x9;9.8&#x9;https://vulners.com/cve/CVE-2023-38408&#xa;    &#x9;CVE-2023-51385&#x9;6.5&#x9;https://vulners.com/cve/CVE-2023-51385"><table key="cpe:/a:openbsd:openssh:8.9p1">
+<table>
+<elem key="id">CVE-2023-38408</elem>
+<elem key="type">cve</elem>
+<elem key="is_exploit">false</elem>
+<elem key="cvss">9.8</elem>
+</table>
+<table>
+<elem key="id">CVE-2023-51385</elem>
+<elem key="type">cve</elem>
+<elem key="is_exploit">false</elem>
+<elem key="cvss">6.5</elem>
+</table>
+</table>
+</script></port>
+<port protocol="tcp" portid="80"><state state="open" reason="syn-ack" reason_ttl="64"/><service name="http" product="Apache httpd" version="2.4.52" extrainfo="(Ubuntu)" method="probed" conf="10"><cpe>cpe:/a:apache:http_server:2.4.52</cpe></service><script id="http-server-header" output="Apache/2.4.52 (Ubuntu)"><elem>Apache/2.4.52 (Ubuntu)</elem>
+</script><script id="http-title" output="Apache2 Ubuntu Default Page: It works"><elem key="title">Apache2 Ubuntu Default Page: It works</elem>
+</script><script id="vulners" output="&#xa;  cpe:/a:apache:http_server:2.4.52: &#xa;    &#x9;CVE-2022-31813&#x9;9.8&#x9;https://vulners.com/cve/CVE-2022-31813&#xa;    &#x9;CVE-2022-22720&#x9;9.8&#x9;https://vulners.com/cve/CVE-2022-22720&#xa;    &#x9;CVE-2022-30556&#x9;7.5&#x9;https://vulners.com/cve/CVE-2022-30556"><table key="cpe:/a:apache:http_server:2.4.52">
+<table>
+<elem key="id">CVE-2022-31813</elem>
+<elem key="type">cve</elem>
+<elem key="is_exploit">false</elem>
+<elem key="cvss">9.8</elem>
+</table>
+<table>
+<elem key="id">CVE-2022-22720</elem>
+<elem key="type">cve</elem>
+<elem key="is_exploit">false</elem>
+<elem key="cvss">9.8</elem>
+</table>
+<table>
+<elem key="id">CVE-2022-30556</elem>
+<elem key="type">cve</elem>
+<elem key="is_exploit">false</elem>
+<elem key="cvss">7.5</elem>
+</table>
+</table>
+</script></port>
+<port protocol="tcp" portid="445"><state state="open" reason="syn-ack" reason_ttl="64"/><service name="netbios-ssn" product="Samba smbd" version="4" extrainfo="workgroup: WORKGROUP" method="probed" conf="10"><cpe>cpe:/a:samba:samba:4</cpe></service></port>
+<port protocol="udp" portid="161"><state state="open|filtered" reason="no-response" reason_ttl="0"/><service name="snmp" method="table" conf="3"/></port>
+</ports>
+<hostscript><script id="smb-security-mode" output="&#xa;  account_used: guest&#xa;  authentication_level: user&#xa;  challenge_response: supported&#xa;_  message_signing: disabled (dangerous, but default)"><elem key="account_used">guest</elem>
+<elem key="authentication_level">user</elem>
+<elem key="challenge_response">supported</elem>
+<elem key="message_signing">disabled (dangerous, but default)</elem>
+</script></hostscript>
+<times srtt="418" rttvar="206" to="100000"/>
+</host>
+<host starttime="1794073202" endtime="1794073204"><status state="down" reason="no-response" reason_ttl="0"/>
+<address addr="10.0.10.12" addrtype="ipv4"/>
+</host>
+<runstats><finished time="1794073271" timestr="Sat Nov  7 18:41:11 2026" summary="Nmap done at Sat Nov  7 18:41:11 2026; 2 IP addresses (1 host up) scanned in 69.14 seconds" elapsed="69.14" exit="success"/><hosts up="1" down="1" total="2"/>
+</runstats>
+</nmaprun>

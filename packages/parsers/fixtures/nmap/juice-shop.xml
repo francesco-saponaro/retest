@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE nmaprun>
+<?xml-stylesheet href="file:///usr/share/nmap/nmap.xsl" type="text/xsl"?>
+<!-- Nmap 7.95 scan initiated Sat Nov  7 18:02:11 2026 as: nmap -sV -sC -p- -oX fixtures/nmap/juice-shop.xml 127.0.0.1 -->
+<nmaprun scanner="nmap" args="nmap -sV -sC -p- -oX fixtures/nmap/juice-shop.xml 127.0.0.1" start="1794070931" startstr="Sat Nov  7 18:02:11 2026" version="7.95" xmloutputversion="1.05">
+<scaninfo type="connect" protocol="tcp" numservices="65535" services="1-65535"/>
+<verbose level="0"/>
+<debugging level="0"/>
+<hosthint><status state="up" reason="unknown-response" reason_ttl="0"/>
+<address addr="127.0.0.1" addrtype="ipv4"/>
+<hostnames>
+<hostname name="localhost" type="PTR"/>
+</hostnames>
+</hosthint>
+<host starttime="1794070931" endtime="1794070956"><status state="up" reason="syn-ack" reason_ttl="0"/>
+<address addr="127.0.0.1" addrtype="ipv4"/>
+<hostnames>
+<hostname name="localhost" type="PTR"/>
+</hostnames>
+<ports><extraports state="closed" count="65531">
+<extrareasons reason="conn-refused" count="65531" proto="tcp" ports="1-21,23-2999,3001-5431,5433-8079,8081-65535"/>
+</extraports>
+<port protocol="tcp" portid="22"><state state="open" reason="syn-ack" reason_ttl="0"/><service name="ssh" product="OpenSSH" version="9.6p1 Ubuntu 3ubuntu13.5" extrainfo="Ubuntu Linux; protocol 2.0" ostype="Linux" method="probed" conf="10"><cpe>cpe:/a:openbsd:openssh:9.6p1</cpe><cpe>cpe:/o:linux:linux_kernel</cpe></service><script id="ssh-hostkey" output="&#xa;  256 4c:7a:19:3e:2b:0f:61:d8:9a:52:e4:b7:33:1c:ad:06 (ECDSA)&#xa;_  256 9e:44:f1:c2:7b:58:a3:0d:6e:91:2f:cb:47:8a:d5:13 (ED25519)"><table>
+<elem key="type">ecdsa-sha2-nistp256</elem>
+<elem key="key">AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBHk3o1k2b4V7Lw2Pc9Kq8xq1r0N6uY3Qm9f0Z8aFJ2uQXqS0m7cH5zJ1bRk4wG6yT3vA8dL2nF0eC9xM1pK7sQo=</elem>
+<elem key="fingerprint">4c7a193e2b0f61d89a52e4b7331cad06</elem>
+<elem key="bits">256</elem>
+</table>
+<table>
+<elem key="type">ssh-ed25519</elem>
+<elem key="key">AAAAC3NzaC1lZDI1NTE5AAAAIFzQ3q0tJ8m2cV9yR1aL6kX4nE7pB0dS5fG2hW8uT3vK</elem>
+<elem key="fingerprint">9e44f1c27b58a30d6e912fcb478ad513</elem>
+<elem key="bits">256</elem>
+</table>
+</script></port>
+<port protocol="tcp" portid="3000"><state state="open" reason="syn-ack" reason_ttl="0"/><service name="http" product="Node.js Express framework" method="probed" conf="10"><cpe>cpe:/a:nodejs:node.js</cpe></service><script id="http-title" output="OWASP Juice Shop"><elem key="title">OWASP Juice Shop</elem>
+</script><script id="http-robots.txt" output="1 disallowed entry &#xa;/ftp"><elem key="disallowed">/ftp</elem>
+</script><script id="http-cors" output="HEAD GET POST PUT DELETE OPTIONS"><elem>HEAD</elem>
+<elem>GET</elem>
+<elem>POST</elem>
+<elem>PUT</elem>
+<elem>DELETE</elem>
+<elem>OPTIONS</elem>
+</script><script id="http-server-header" output="&#xa;  Server header absent&#xa;_  X-Powered-By: Express"/></port>
+<port protocol="tcp" portid="5432"><state state="open" reason="syn-ack" reason_ttl="0"/><service name="postgresql" product="PostgreSQL DB" version="16.4 - 16.10" method="probed" conf="10"><cpe>cpe:/a:postgresql:postgresql:16.4</cpe></service></port>
+<port protocol="tcp" portid="8080"><state state="open" reason="syn-ack" reason_ttl="0"/><service name="http-proxy" product="OWASP ZAP" method="probed" conf="10"/><script id="http-title" output="ZAP API UI"><elem key="title">ZAP API UI</elem>
+</script><script id="http-open-proxy" output="Proxy might be redirecting requests"/></port>
+</ports>
+<times srtt="112" rttvar="43" to="100000"/>
+</host>
+<runstats><finished time="1794070956" timestr="Sat Nov  7 18:02:36 2026" summary="Nmap done at Sat Nov  7 18:02:36 2026; 1 IP address (1 host up) scanned in 24.81 seconds" elapsed="24.81" exit="success"/><hosts up="1" down="0" total="1"/>
+</runstats>
+</nmaprun>
