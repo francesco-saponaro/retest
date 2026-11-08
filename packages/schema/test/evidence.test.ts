@@ -19,6 +19,21 @@ describe("Source", () => {
     expect(s.reference).toBe("https://www.zaproxy.org/docs/alerts/10021/");
     expect(SourceSchema.safeParse({ tool: "zap", rawId: "10021", reference: "zaproxy" }).success).toBe(false);
   });
+
+  it("keeps the tool's own rating as the tool gave it: a severity word, a CVSS vector, a score", () => {
+    const s = SourceSchema.parse({
+      tool: "trivy",
+      rawId: "CVE-2015-9235",
+      severity: "critical",
+      cvss: { vector: "CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H", score: 9.8 },
+    });
+    expect(s.severity).toBe("critical");
+    expect(s.cvss).toEqual({ vector: "CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H", score: 9.8 });
+    // A bare score with no vector is allowed: Nmap's vulners script gives one.
+    expect(SourceSchema.safeParse({ tool: "nmap", rawId: "tcp/22/vulners", cvss: { score: 9.8 } }).success).toBe(true);
+    expect(SourceSchema.safeParse({ tool: "nmap", rawId: "tcp/22/vulners", cvss: { score: 11 } }).success).toBe(false);
+    expect(SourceSchema.safeParse({ tool: "zap", rawId: "10038", severity: "moderate" }).success).toBe(false);
+  });
 });
 
 describe("Evidence", () => {

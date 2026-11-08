@@ -274,6 +274,23 @@ const CWE_ENTRIES: Record<number, Entry> = {
 
   // A10 Server-Side Request Forgery
   918: { name: "Server-side request forgery", owaspTop10: "A10", owaspApi: "API7" },
+
+  // Reported by the scanners but on none of OWASP's mapped lists. The category, when there is
+  // one, is placed by the category's description rather than by OWASP's list, and says so here.
+  // A missing security header (ZAP and Nuclei both say CWE-693) is security misconfiguration.
+  693: { name: "Protection mechanism failure (a missing security header)", owaspTop10: "A05", asvs: ["V14"], cis: [4] },
+  // SMB signing off (Nmap's smb-security-mode): traffic whose integrity is not enforced.
+  924: { name: "Improper enforcement of message integrity during transmission", owaspTop10: "A02", asvs: ["V9"], cis: [3, 12] },
+  // A console login or a root account with no second factor (Prowler's MFA checks).
+  308: { name: "Use of single-factor authentication", owaspTop10: "A07", owaspApi: "API2", asvs: ["V2"], cis: [5, 6] },
+  // A dangerous function reachable from input (ZAP's "Dangerous JS Functions"): a code matter, no Top 10 category.
+  749: { name: "Exposed dangerous method or function", asvs: ["V5"], cis: [16] },
+  // A TODO or a debug note left in a served script (ZAP's "Suspicious Comments"): a disclosure, no Top 10 category.
+  615: { name: "Inclusion of sensitive information in source code comments", asvs: ["V14"], cis: [16] },
+  // Memory safety in a system library (Trivy on an OS package): patching, not an application chapter.
+  787: { name: "Out-of-bounds write", asvs: [], cis: [7] },
+  // A port open to the whole Internet (Prowler's security-group checks): network configuration, no Top 10 category.
+  1327: { name: "Binding to an unrestricted IP address", asvs: [], cis: [4, 12] },
 };
 
 function toCweNumber(id: number | string): number | undefined {

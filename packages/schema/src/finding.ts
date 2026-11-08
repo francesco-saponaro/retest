@@ -63,9 +63,17 @@ export const RetestSchema = z
 
 export type Retest = z.infer<typeof RetestSchema>;
 
-/** Where the finding sits in each standard. All arrays, because a weakness can touch several. */
+/** `CVE-2015-9235`: the canonical spelling, upper case, four-digit year, at least four digits after it. */
+export const CveIdSchema = z.string().regex(/^CVE-\d{4}-\d{4,}$/, "not a CVE id");
+
+/**
+ * Where the finding sits in each standard, plus the CVE ids it refers to. All arrays, because a
+ * weakness can touch several. CWE and CVE come from the tools; the rest is filled from the CWE
+ * table once the finding is classified.
+ */
 export const MappingsSchema = z.object({
   cwe: z.array(z.number().int().positive()).default([]),
+  cve: z.array(CveIdSchema).default([]),
   owaspTop10: z.array(OwaspTop10IdSchema).default([]),
   owaspApi: z.array(OwaspApiTop10IdSchema).default([]),
   asvs: z.array(AsvsChapterIdSchema).default([]),
@@ -111,7 +119,7 @@ export const FindingSchema = z
     status: FindingStatusSchema.default("open"),
     falsePositiveReason: z.string().min(1).optional(),
     sources: z.array(SourceSchema).default([]),
-    mappings: MappingsSchema.default({ cwe: [], owaspTop10: [], owaspApi: [], asvs: [], cis: [] }),
+    mappings: MappingsSchema.default({ cwe: [], cve: [], owaspTop10: [], owaspApi: [], asvs: [], cis: [] }),
     createdAt: datetime,
     updatedAt: datetime,
   })

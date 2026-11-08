@@ -122,4 +122,16 @@ describe("lookupCwe", () => {
     const known = [20, 22, 78, 79, 89, 200, 287, 306, 307, 319, 326, 327, 352, 434, 502, 522, 532, 601, 611, 614, 639, 798, 862, 863, 918, 942, 1004, 1021];
     for (const id of known) expect(lookupCwe(id), `CWE-${id}`).toBeDefined();
   });
+
+  it("knows the CWEs the scanners report that OWASP's own lists leave out, placed by judgement", () => {
+    expect(lookupCwe(693)).toEqual({ cwe: 693, name: "Protection mechanism failure (a missing security header)", owaspTop10: "A05", asvs: ["V14"], cis: [4] });
+    expect(lookupCwe(924)?.owaspTop10).toBe("A02"); // SMB signing off
+    expect(lookupCwe(308)?.owaspTop10).toBe("A07"); // single-factor authentication
+    expect(lookupCwe(308)?.owaspApi).toBe("API2");
+    // These two have no OWASP category: they are code-quality and disclosure matters, so only ASVS and CIS apply.
+    expect(lookupCwe(749)).toEqual({ cwe: 749, name: "Exposed dangerous method or function", asvs: ["V5"], cis: [16] });
+    expect(lookupCwe(615)).toEqual({ cwe: 615, name: "Inclusion of sensitive information in source code comments", asvs: ["V14"], cis: [16] });
+    expect(lookupCwe(787)).toEqual({ cwe: 787, name: "Out-of-bounds write", asvs: [], cis: [7] });
+    expect(lookupCwe(1327)).toEqual({ cwe: 1327, name: "Binding to an unrestricted IP address", asvs: [], cis: [4, 12] });
+  });
 });

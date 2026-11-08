@@ -30,7 +30,21 @@ export interface RawFinding {
   port?: number;
   protocol?: "tcp" | "udp";
   url?: string;
-  /** The part of the asset the finding is about: `tcp/3000`, `GET /api-docs/`. Becomes the finding's scope. */
+  /** A code finding: the repository it was found in, and the file. */
+  repository?: string;
+  filePath?: string;
+  /** A container-image finding: the image as the tool names it, `bkimminich/juice-shop:v17.1.1`. */
+  image?: string;
+  /** A cloud finding: the account and, when there is one, the resource. */
+  cloud?: {
+    provider: string;
+    account: string;
+    accountName?: string;
+    region?: string;
+    resource?: string;
+    resourceType?: string;
+  };
+  /** The part of the asset the finding is about: `tcp/3000`, `GET /api-docs/`, `routes/login.ts:34`. Becomes the finding's scope. */
   scope: string;
 
   /** What the tool says the check is about. Not an impact statement. */

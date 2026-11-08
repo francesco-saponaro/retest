@@ -77,7 +77,7 @@ describe("Finding", () => {
     expect(f.status).toBe("open");
     expect(f.evidence).toEqual([]);
     expect(f.sources).toEqual([]);
-    expect(f.mappings).toEqual({ cwe: [], owaspTop10: [], owaspApi: [], asvs: [], cis: [] });
+    expect(f.mappings).toEqual({ cwe: [], cve: [], owaspTop10: [], owaspApi: [], asvs: [], cis: [] });
     expect(f.retest).toBeUndefined();
   });
 
@@ -111,6 +111,10 @@ describe("Finding", () => {
     expect(f.mappings.owaspApi).toEqual([]);
     expect(FindingSchema.safeParse({ ...minimal, mappings: { owaspTop10: ["A11"] } }).success).toBe(false);
     expect(FindingSchema.safeParse({ ...minimal, mappings: { cis: [19] } }).success).toBe(false);
+    // CVE ids are kept with the mappings, in their canonical spelling.
+    expect(FindingSchema.parse({ ...minimal, mappings: { cve: ["CVE-2015-9235", "CVE-2024-9143"] } }).mappings.cve).toEqual(["CVE-2015-9235", "CVE-2024-9143"]);
+    expect(FindingSchema.safeParse({ ...minimal, mappings: { cve: ["2015-9235"] } }).success).toBe(false);
+    expect(FindingSchema.safeParse({ ...minimal, mappings: { cve: ["cve-2015-9235"] } }).success).toBe(false);
   });
 
   it("needs a reason to be a false positive", () => {

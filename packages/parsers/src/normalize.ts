@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { AssetSchema, FindingSchema, type Asset, type Evidence, type Finding } from "@retest/schema";
+import { AssetSchema, FindingSchema, type Asset, type Evidence, type Finding, type Source } from "@retest/schema";
 import type { RawFinding } from "./raw.js";
 
 /** What goes in the impact field until someone has validated the finding and written the real one. */
@@ -31,8 +31,9 @@ const SCOPE_MAX = 500;
  * Each raw finding is placed on an asset (a host for a port, a web app for a URL), gets a
  * deterministic id from what it is and where it is (so importing the same file twice gives the
  * same ids), and has its seven fields filled: what the tool knows goes in, what it cannot know
- * gets a placeholder that says so. Severity is the tool's own or `info`; CVSS and the mappings
- * to the standards are left for `classify()`.
+ * gets a placeholder that says so. Severity is the tool's own or `info`; the tool's CVSS claim
+ * is kept on the source, and the finding's own CVSS and its mappings to the standards are left
+ * for `classify()`, which checks the claim first.
  */
 export function normalize(raw: RawFinding[], options: NormalizeOptions): Normalized {
   const now = (options.now ?? new Date()).toISOString();
@@ -41,7 +42,12 @@ export function normalize(raw: RawFinding[], options: NormalizeOptions): Normali
     const asset = assets.place(r);
     const scope = cut(r.scope, SCOPE_MAX);
     const id = findingId(options.assessmentId, r, asset.id, scope);
-    const source = { tool: r.tool, rawId: r.rawId, ...(r.references[0] ? { reference: r.references[0] } : {}) };
+    const source: Source = { tool: r.tool, rawId: r.rawId };
+    if (r.references[0]) source.reference = r.references[0];
+    if (r.severity) source.severity = r.severity;
+    if (r.cvss && (r.cvss.vector || r.cvss.score !== undefined)) {
+      source.cvss = { ...(r.cvss.vector ? { vector: r.cvss.vector } : {}), ...(r.cvss.score !== undefined ? { score: r.cvss.score } : {}) };
+    }
     const evidence: Evidence[] = r.evidence.map((e, i) => ({
       id: `${id}-e${i + 1}`,
       findingId: id,
@@ -65,7 +71,7 @@ export function normalize(raw: RawFinding[], options: NormalizeOptions): Normali
       phase: r.phase ?? "assessment",
       status: "open",
       sources: [source],
-      mappings: { cwe: [...new Set(r.cwe)], owaspTop10: [], owaspApi: [], asvs: [], cis: [] },
+      mappings: { cwe: [...new Set(r.cwe)], cve: [...new Set(r.cve.map(canonicalCve).filter((c): c is string => c !== undefined))], owaspTop10: [], owaspApi: [], asvs: [], cis: [] },
       createdAt: now,
       updatedAt: now,
     });
@@ -77,6 +83,12 @@ export function normalize(raw: RawFinding[], options: NormalizeOptions): Normali
 export function findingId(assessmentId: string, raw: Pick<RawFinding, "tool" | "rawId">, assetId: string, scope: string): string {
   const digest = createHash("sha256").update([assessmentId, raw.tool, raw.rawId, assetId, scope].join("\n")).digest("hex");
   return `f-${digest.slice(0, 12)}`;
+}
+
+/** `cve-2015-9235` becomes `CVE-2015-9235`; anything that is not a CVE id is dropped. */
+function canonicalCve(id: string): string | undefined {
+  const m = /^\s*cve-(\d{4})-(\d{4,})\s*$/i.exec(id);
+  return m ? `CVE-${m[1]}-${m[2]}` : undefined;
 }
 
 function cut(value: string, max: number): string {
@@ -99,10 +111,21 @@ class AssetBook {
     this.known = [...existing];
   }
 
+  /** A URL wins over a host (a web finding on a known host is about the web app), then the host, then the other kinds. */
   place(raw: RawFinding): Asset {
     const origin = raw.url ? originOf(raw.url) : undefined;
-    const asset = origin ? this.webApp(origin) : raw.host ? this.host(raw) : undefined;
-    if (!asset) throw new Error(`cannot place "${raw.title}" (${raw.tool} ${raw.rawId}): it has no host or url`);
+    const asset = origin
+      ? this.webApp(origin)
+      : raw.host
+        ? this.host(raw)
+        : raw.repository
+          ? this.repository(raw.repository)
+          : raw.image
+            ? this.image(raw.image)
+            : raw.cloud
+              ? this.cloudAccount(raw.cloud)
+              : undefined;
+    if (!asset) throw new Error(`cannot place "${raw.title}" (${raw.tool} ${raw.rawId}): it has no host, url, repository, image or cloud account`);
     this.touched.set(asset.id, asset);
     return asset;
   }
@@ -141,6 +164,32 @@ class AssetBook {
         kind: "host",
         name: raw.hostname ?? address,
         host: address,
+      }),
+    );
+  }
+
+  private repository(name: string): Asset {
+    const found = this.known.find((a) => a.kind === "repository" && a.name === name);
+    if (found) return found;
+    return this.remember(AssetSchema.parse({ id: `asset-repo-${slug(name)}`, assessmentId: this.assessmentId, kind: "repository", name }));
+  }
+
+  private image(name: string): Asset {
+    const found = this.known.find((a) => a.kind === "container-image" && a.name === name);
+    if (found) return found;
+    return this.remember(AssetSchema.parse({ id: `asset-image-${slug(name)}`, assessmentId: this.assessmentId, kind: "container-image", name }));
+  }
+
+  private cloudAccount(cloud: NonNullable<RawFinding["cloud"]>): Asset {
+    const found = this.known.find((a) => a.kind === "cloud-account" && a.tags.includes(cloud.provider) && a.name.includes(cloud.account));
+    if (found) return found;
+    return this.remember(
+      AssetSchema.parse({
+        id: `asset-cloud-${slug(cloud.provider)}-${slug(cloud.account)}`,
+        assessmentId: this.assessmentId,
+        kind: "cloud-account",
+        name: cloud.accountName ? `${cloud.accountName} (${cloud.provider} ${cloud.account})` : `${cloud.provider} ${cloud.account}`,
+        tags: [cloud.provider],
       }),
     );
   }
