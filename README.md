@@ -15,15 +15,16 @@ Being built one stage at a time, an evening each. Done so far:
 1. The monorepo and `packages/schema`: the finding format, the six phases, the severity scale, a CVSS v3.1 parser and calculator checked against the examples published by FIRST, and the mapping tables (OWASP Top 10 2021, OWASP API Security Top 10 2023, ASVS v4 chapters, CIS Controls v8, with a lookup by CWE).
 2. `packages/parsers`, first half: the Nmap (XML) and Nuclei (JSON Lines) parsers, with fixtures and tests that count every result, and `normalize()`, which turns what a parser extracts into findings and assets in the schema's format.
 3. `packages/parsers`, second half: the ZAP (JSON report), Semgrep (SARIF), Trivy (JSON) and Prowler (OCSF) parsers, `dedupe()`, which folds the same weakness seen by several tools into one finding with several sources, and `classify()`, which checks every CVSS vector before storing it and maps each finding to the standards through its CWE.
+4. `apps/api`: Fastify over PostgreSQL through Drizzle, with PGlite (PostgreSQL in the process) for the tests and for running without a database. Assessments, assets, findings, evidence, imports and the two reports as routes; a bearer token on every request, every row reached through the assessment it belongs to, a rate limit per user, zod on every body; an audit log of every phase and status change and every import; a seed that imports the six fixtures.
 
-Still to come, in order: the API, the web app, the workflow rules, the reports, the lab and the command line.
+Still to come, in order: the web app, the workflow rules, the reports properly, the lab and the command line.
 
 ## Layout
 
 ```
 packages/schema    zod schemas and types: Finding, Asset, Evidence, Assessment, Phase, Severity, CVSS, mappings
 packages/parsers   one parser per tool, then normalize(), dedupe() and classify()
-apps/api           Fastify, Drizzle, PostgreSQL; pglite in tests                       (stage 4)
+apps/api           Fastify, Drizzle, PostgreSQL; PGlite in tests and for a quick start
 apps/web           Vite, React, TanStack Router and Query, Tailwind; a static demo mode (stages 5 to 8)
 apps/cli           retest import / retest report, talking to the API                   (stage 9)
 lab/               docker compose: postgres, api, web, juice-shop, a scanner container (stage 9)
@@ -42,6 +43,48 @@ pnpm -r build      # tsc for each package
 ```
 
 Until the web app exists, `dist/` holds a placeholder page so that the deploy has something to serve.
+
+## Run the API
+
+```
+export RETEST_JWT_SECRET="$(openssl rand -hex 32)"   # at least 32 characters; there is no default
+pnpm -r build
+pnpm -C apps/api seed me          # the lab assessment for user "me", in an in-memory database
+pnpm -C apps/api start            # http://127.0.0.1:3001
+```
+
+Without `DATABASE_URL` the API runs PGlite in memory, and everything is gone when it stops. Set `DATABASE_URL=pglite:./data` to keep it on disk, or `DATABASE_URL=postgres://user:pass@host:5432/retest` for PostgreSQL 16, where `pnpm -C apps/api migrate` applies the migrations in `apps/api/drizzle/`. `HOST` is `127.0.0.1` unless you say otherwise; `PORT` is 3001.
+
+Every route except `/health` needs `Authorization: Bearer <token>`. Tokens are HS256 JWTs signed with `RETEST_JWT_SECRET`; mint one with `pnpm -C apps/api token <user> [assessor|admin] [hours]`. A user sees only the assessments they created; an admin sees all of them.
+
+```
+TOKEN=$(pnpm --silent -C apps/api token me)
+curl -s -X POST localhost:3001/assessments -H "authorization: Bearer $TOKEN" -H 'content-type: application/json' \
+  -d '{"name":"Juice Shop","scope":{"targets":["127.0.0.1","http://127.0.0.1:3000"],"authorizedBy":"me"}}'
+curl -s -X POST "localhost:3001/imports?assessmentId=<id>&tool=nmap&filename=scan.xml" \
+  -H "authorization: Bearer $TOKEN" -H 'content-type: text/xml' --data-binary @scan.xml
+curl -s "localhost:3001/assessments/<id>/findings?severity=high,critical" -H "authorization: Bearer $TOKEN"
+curl -s "localhost:3001/assessments/<id>/summary.md" -H "authorization: Bearer $TOKEN"
+```
+
+The routes:
+
+| Route | What it does |
+| --- | --- |
+| `POST /assessments`, `GET /assessments`, `GET /assessments/:id` | Create, list, read (with totals by severity, phase and status). |
+| `PATCH /assessments/:id`, `DELETE /assessments/:id` | Name, client and scope; delete with everything under it. |
+| `POST /assessments/:id/phase`, `POST /assessments/:id/status` | Move the engagement; each change is an audit line. |
+| `GET /assessments/:id/audit`, `GET /assessments/:id/imports` | What happened, in order. |
+| `POST /assessments/:id/assets`, `GET /assessments/:id/assets`, `GET`/`PATCH /assessments/:id/assets/:assetId` | The things under test. An asset is keyed by (assessment, id). |
+| `POST /assessments/:id/findings` | A finding made by hand, the seven fields in. |
+| `GET /assessments/:id/findings` | Filters `severity`, `phase`, `status`, `tool`, `owasp`, `assetId`, `q`, each a comma-separated list; `limit` and `offset`. |
+| `GET /findings/:id`, `PATCH /findings/:id` | The seven fields with the evidence and the asset; edit the written fields and the risk. |
+| `POST /findings/:id/phase`, `GET /findings/:id/audit` | Move one finding; its own audit lines. |
+| `POST /findings/:id/evidence`, `PATCH /evidence/:id` | Add evidence as JSON or as a plain-text body; mark it redacted. |
+| `POST /imports` | A scanner's file, as JSON `{assessmentId, tool, content, filename, repository}` or as the raw body with those in the query. |
+| `GET /assessments/:id/report.md`, `GET /assessments/:id/summary.md` | The technical report and the executive summary, markdown. |
+
+An import parses the file, places what it finds on the assessment's assets, folds it into the findings already there, classifies the result and writes what changed. Importing the same file twice changes nothing. An asset the scope does not cover is recorded as out of scope and the import says so. The status, retest and false-positive rules of the workflow are not routes yet; the schema already refuses a closed finding without a retest that says fixed.
 
 ## The schema, in short
 

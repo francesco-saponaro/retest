@@ -6,3 +6,4 @@ apps/*/dist/
 *.log
 .DS_Store
 .env
+apps/api/data/
