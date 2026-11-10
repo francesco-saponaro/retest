@@ -16,8 +16,9 @@ Being built one stage at a time, an evening each. Done so far:
 2. `packages/parsers`, first half: the Nmap (XML) and Nuclei (JSON Lines) parsers, with fixtures and tests that count every result, and `normalize()`, which turns what a parser extracts into findings and assets in the schema's format.
 3. `packages/parsers`, second half: the ZAP (JSON report), Semgrep (SARIF), Trivy (JSON) and Prowler (OCSF) parsers, `dedupe()`, which folds the same weakness seen by several tools into one finding with several sources, and `classify()`, which checks every CVSS vector before storing it and maps each finding to the standards through its CWE.
 4. `apps/api`: Fastify over PostgreSQL through Drizzle, with PGlite (PostgreSQL in the process) for the tests and for running without a database. Assessments, assets, findings, evidence, imports and the two reports as routes; a bearer token on every request, every row reached through the assessment it belongs to, a rate limit per user, zod on every body; an audit log of every phase and status change and every import; a seed that imports the six fixtures.
+5. `apps/web`, the start of it: the list of assessments and the overview of one (the six-phase board, the totals by severity and status, the scope with what each target covers, the assets, the imports), and the demo mode behind the live link, which runs the API's own services in the browser against PostgreSQL compiled to WebAssembly, seeded from the same six scanner files.
 
-Still to come, in order: the web app, the workflow rules, the reports properly, the lab and the command line.
+Still to come, in order: the findings table and the finding page, the workflow rules, the reports properly, the lab and the command line.
 
 ## Layout
 
@@ -25,7 +26,7 @@ Still to come, in order: the web app, the workflow rules, the reports properly, 
 packages/schema    zod schemas and types: Finding, Asset, Evidence, Assessment, Phase, Severity, CVSS, mappings
 packages/parsers   one parser per tool, then normalize(), dedupe() and classify()
 apps/api           Fastify, Drizzle, PostgreSQL; PGlite in tests and for a quick start
-apps/web           Vite, React, TanStack Router and Query, Tailwind; a static demo mode (stages 5 to 8)
+apps/web           Vite, React, TanStack Router and Query, Tailwind; a static demo mode
 apps/cli           retest import / retest report, talking to the API                   (stage 9)
 lab/               docker compose: postgres, api, web, juice-shop, a scanner container (stage 9)
 ```
@@ -39,10 +40,10 @@ pnpm install
 pnpm test          # vitest, every package
 pnpm typecheck
 pnpm lint
-pnpm -r build      # tsc for each package
+pnpm -r build      # tsc for each package, vite for the web app
 ```
 
-Until the web app exists, `dist/` holds a placeholder page so that the deploy has something to serve.
+The web tests render the two screens with Testing Library against a fake client, and run the demo's in-browser API in Node to check that it produces the same numbers as the API's own seed.
 
 ## Run the API
 
@@ -85,6 +86,19 @@ The routes:
 | `GET /assessments/:id/report.md`, `GET /assessments/:id/summary.md` | The technical report and the executive summary, markdown. |
 
 An import parses the file, places what it finds on the assessment's assets, folds it into the findings already there, classifies the result and writes what changed. Importing the same file twice changes nothing. An asset the scope does not cover is recorded as out of scope and the import says so. The status, retest and false-positive rules of the workflow are not routes yet; the schema already refuses a closed finding without a retest that says fixed.
+
+## Run the web app
+
+```
+pnpm -C apps/web dev              # http://localhost:5173, talking to the API through a /api proxy
+VITE_DEMO=1 pnpm -C apps/web build && pnpm -C apps/web preview   # the static demo, as deployed
+```
+
+Against the API, the app asks for a token on its Connect screen: mint one with `pnpm -C apps/api token <user>` and paste it. The token stays in the tab's session storage and goes when the tab closes; there is no login, because tokens are minted by whoever holds the API's secret and that is the right shape for a single-team tool. The dev server proxies `/api` to `http://127.0.0.1:3001`, so the API needs no CORS; `VITE_API_URL` points the built app somewhere else.
+
+With `VITE_DEMO=1` there is no server at all. The build bundles PGlite (PostgreSQL compiled to WebAssembly, about 5 MB compressed), the migration, the six fixtures and the API's services, and the page makes the lab when it loads: the two assessments, their imports and the audit lines, through the same `runImport` the API runs. It is the real code path with the network taken out, which is why the demo's numbers are the ones the API tests assert. Nothing is stored: reload the page and the lab is made again, with the same ids, so links to an assessment keep working.
+
+The screens so far: `/` lists the assessments with the phase each is in; `/a/:id` is one assessment's overview, which reads top to bottom as the six phases with the findings in each (the current one marked), the findings by severity and by status, the scope with how many assets each target covers, the assets, and the imports with what each produced. The line under the title says how much of the assessment is still only what a scanner said, because that is the number that decides what to do next.
 
 ## The schema, in short
 

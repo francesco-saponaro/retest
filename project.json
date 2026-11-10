@@ -6,6 +6,6 @@
   "description": "A vulnerability-assessment workbench: scanner output in, findings in one format out, walked through the six phases of an assessment to a report.",
   "install": "pnpm install --frozen-lockfile",
   "test": "pnpm test",
-  "build": "pnpm -r build",
-  "dist": "dist"
+  "build": "VITE_DEMO=1 pnpm -C apps/web build",
+  "dist": "apps/web/dist"
 }
