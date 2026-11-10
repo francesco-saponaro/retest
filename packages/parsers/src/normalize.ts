@@ -1,6 +1,6 @@
-import { createHash } from "node:crypto";
 import { AssetSchema, FindingSchema, type Asset, type Evidence, type Finding, type Source } from "@retest/schema";
 import type { RawFinding } from "./raw.js";
+import { sha256hex } from "./sha256.js";
 
 /** What goes in the impact field until someone has validated the finding and written the real one. */
 export const UNASSESSED_IMPACT = "Not assessed yet. The scanner reported this; the impact is written after validation.";
@@ -81,7 +81,7 @@ export function normalize(raw: RawFinding[], options: NormalizeOptions): Normali
 
 /** `f-` and twelve hex digits of a hash over what identifies the finding. */
 export function findingId(assessmentId: string, raw: Pick<RawFinding, "tool" | "rawId">, assetId: string, scope: string): string {
-  const digest = createHash("sha256").update([assessmentId, raw.tool, raw.rawId, assetId, scope].join("\n")).digest("hex");
+  const digest = sha256hex([assessmentId, raw.tool, raw.rawId, assetId, scope].join("\n"));
   return `f-${digest.slice(0, 12)}`;
 }
 

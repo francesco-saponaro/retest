@@ -58,9 +58,10 @@ export async function requireAssessment(db: Db, id: string, who: Principal): Pro
   return row;
 }
 
-export async function createAssessment(db: Db, input: z.infer<typeof NewAssessmentSchema>, who: Principal, now = new Date()): Promise<AssessmentOut> {
+/** The id is the server's: random unless the caller is the seed, which may name it so that a demo link survives a reload. */
+export async function createAssessment(db: Db, input: z.infer<typeof NewAssessmentSchema>, who: Principal, now = new Date(), id = newId("a")): Promise<AssessmentOut> {
   const row: AssessmentRow = {
-    id: newId("a"),
+    id,
     ownerId: who.sub,
     name: input.name,
     client: input.client ?? null,

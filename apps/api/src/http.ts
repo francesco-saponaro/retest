@@ -1,4 +1,3 @@
-import { randomBytes } from "node:crypto";
 import type { z } from "zod";
 
 /** An error with the status it should be answered with. The message is safe to show to the client. */
@@ -42,7 +41,11 @@ export function notFound(what = "not found"): never {
   throw new HttpError(404, what);
 }
 
-/** `a-` and twelve hex digits from a secure random source: not guessable, not sequential. */
+/**
+ * `a-` and twelve hex digits from a secure random source: not guessable, not sequential. Web
+ * Crypto rather than `node:crypto`, because this file also runs in the browser's demo build.
+ */
 export function newId(prefix: string): string {
-  return `${prefix}-${randomBytes(6).toString("hex")}`;
+  const bytes = globalThis.crypto.getRandomValues(new Uint8Array(6));
+  return `${prefix}-${Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("")}`;
 }
