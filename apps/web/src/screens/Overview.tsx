@@ -49,7 +49,13 @@ export function Overview() {
       <section className="section">
         <header>
           <h2>Findings</h2>
-          <span className="note">{count(a.totals.findings, "finding")} on {count(a.totals.assets, "asset")}</span>
+          {a.totals.findings > 0 ? (
+            <Link to="/a/$id/findings" params={{ id }} className="crumb">
+              All {count(a.totals.findings, "finding")}
+            </Link>
+          ) : (
+            <span className="note">nothing on {count(a.totals.assets, "asset")}</span>
+          )}
         </header>
         <SeverityTray totals={a.totals} />
         <div className="mt-3">

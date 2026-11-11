@@ -19,6 +19,7 @@
     "@retest/schema": "workspace:*",
     "@tanstack/react-query": "^5.107.1",
     "@tanstack/react-router": "^1.170.46",
+    "@tanstack/react-virtual": "^3.14.26",
     "drizzle-orm": "^0.45.4",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"

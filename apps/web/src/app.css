@@ -571,8 +571,287 @@
     line-height: 16px;
   }
 
+
+  /* ---------- crumbs over a title ---------- */
+  .crumbs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 2px;
+    color: var(--muted);
+    font-weight: 500;
+  }
+  .crumbs .sep {
+    margin: 0 6px;
+    color: var(--control);
+  }
+
+  /* ---------- the filter bar: a search, five selects, one text action, one height ---------- */
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .toolbar .search {
+    width: 280px;
+    height: var(--control-height);
+  }
+  .select {
+    height: var(--control-height);
+    padding: 0 30px 0 10px;
+    border: 1px solid var(--control);
+    border-radius: var(--radius-control);
+    background: var(--surface);
+    font: inherit;
+    color: var(--text);
+    appearance: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%236b6b6b' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    max-width: 240px;
+    text-overflow: ellipsis;
+  }
+
+  /* ---------- the findings table: the header stays under the bar; the severity is a word with its step of the ramp ---------- */
+  .table-wrap.open {
+    /* a scrolling wrap would hold the sticky header inside itself; this table fits the column, so nothing scrolls */
+    overflow: visible;
+  }
+  table.findings thead th {
+    position: sticky;
+    top: 48px;
+    background: var(--surface);
+    z-index: 1;
+    box-shadow: inset 0 -1px 0 var(--border);
+  }
+  table.findings td.id a {
+    display: block;
+    max-width: 44ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  table.findings td.id .sub {
+    max-width: 44ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  tr.spacer td {
+    padding: 0;
+    border: 0;
+  }
+  .sev {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+  }
+  .sev i {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    flex: none;
+  }
+
+  /* ---------- the seven fields: a ledger, the field's name and its question on the left ---------- */
+  .fields li {
+    display: grid;
+    grid-template-columns: 240px minmax(0, 1fr);
+    gap: 0 24px;
+    padding: 14px var(--card-pad);
+  }
+  .fields li + li {
+    border-top: 1px solid var(--rule);
+  }
+  .fields .name {
+    font-weight: 500;
+  }
+  .fields .name .q {
+    display: block;
+    font-weight: 400;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 18px;
+    margin-top: 2px;
+  }
+  .fields .value {
+    overflow-wrap: anywhere;
+  }
+  .prose {
+    white-space: pre-line;
+    max-width: 72ch;
+  }
+
+  /* ---------- evidence: a capture is the request beside its response; a flagged line is tinted ---------- */
+  .piece-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 14px var(--card-pad) 12px;
+  }
+  .piece-head h3 {
+    font-weight: 500;
+    overflow-wrap: anywhere;
+  }
+  .capture {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--gap);
+    padding: 0 var(--card-pad) var(--card-pad);
+  }
+  .capture.one {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .capture .cap {
+    color: var(--muted);
+    font-size: var(--fs-small);
+    line-height: 16px;
+    margin-bottom: 6px;
+  }
+  .capture pre {
+    margin: 0;
+    padding: 12px 14px;
+    background: var(--ground);
+    border-radius: var(--radius-control);
+    font: 12px / 18px ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    overflow: auto;
+    max-height: 360px;
+    white-space: pre;
+    tab-size: 2;
+  }
+  .capture pre .secret {
+    background: var(--pill-warning-bg);
+    display: inline-block;
+    margin: 0 -4px;
+    padding: 0 4px;
+    width: calc(100% + 8px);
+  }
+
+  /* ---------- the calculator, in the rail: the result first, then the eight metrics as rows of choices ---------- */
+  .calc {
+    display: grid;
+  }
+  .result {
+    padding: var(--card-pad);
+    display: grid;
+    gap: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .metrics {
+    padding: 8px var(--card-pad) 12px;
+  }
+  .metric {
+    display: grid;
+    gap: 6px;
+    padding: 10px 0;
+    border: 0;
+    margin: 0;
+    min-width: 0;
+  }
+  .metric + .metric {
+    border-top: 1px solid var(--rule);
+  }
+  .metric legend {
+    float: left;
+    padding: 0;
+    color: var(--muted);
+  }
+  .choices {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .choice {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    height: 30px;
+    padding: 0 12px;
+    border-radius: var(--radius-control);
+    border: 1px solid transparent;
+    cursor: pointer;
+    user-select: none;
+  }
+  .choice input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    margin: 0;
+    cursor: pointer;
+  }
+  .choice:hover {
+    background: var(--raised);
+  }
+  .choice.on {
+    background: var(--active);
+    font-weight: 500;
+  }
+  .choice:has(input:focus-visible) {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  .score .label {
+    color: var(--muted);
+    font-weight: 500;
+  }
+  .score .value {
+    margin-top: 4px;
+    font-size: var(--fs-kpi);
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+  }
+  .score .value.zero {
+    color: var(--muted);
+  }
+  .score .word {
+    font-weight: 500;
+    margin-top: 2px;
+  }
+  .claims {
+    display: grid;
+    gap: 4px;
+    color: var(--muted);
+  }
+  .claims .differs {
+    color: var(--text);
+  }
+  .actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  /* ---------- label and value pairs in a list ---------- */
+  .pairs li {
+    display: grid;
+    grid-template-columns: 160px minmax(0, 1fr);
+    gap: 0 16px;
+    padding: 10px var(--card-pad);
+  }
+  .pairs li + li {
+    border-top: 1px solid var(--rule);
+  }
+  .pairs .k {
+    color: var(--muted);
+  }
+  .pairs .v {
+    overflow-wrap: anywhere;
+  }
+
   /* ---------- the tablet and the phone ---------- */
   @media (max-width: 1100px) {
+    .table-wrap.open {
+      overflow-x: auto;
+    }
+    table.findings thead th {
+      position: static;
+      box-shadow: none;
+    }
     .with-rail {
       grid-template-columns: minmax(0, 1fr);
     }
@@ -590,6 +869,88 @@
     }
     .two {
       grid-template-columns: minmax(0, 1fr);
+    }
+  }
+  @media (max-width: 1100px) {
+    /* the findings table has eight columns: from the tablet down it is the two-line row the other tables become on the phone */
+    table.findings thead {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+    }
+    table.findings,
+    table.findings tbody {
+      display: block;
+    }
+    table.findings tr {
+      display: block;
+      position: relative;
+      padding: 10px var(--card-pad);
+      border-top: 1px solid var(--rule);
+    }
+    table.findings tbody tr:first-child {
+      border-top: 0;
+    }
+    table.findings td {
+      display: inline;
+      padding: 0;
+      border: 0;
+      text-align: left;
+    }
+    table.findings td.id {
+      display: block;
+      padding-right: 104px;
+    }
+    table.findings td.id .sub {
+      display: inline;
+      margin-left: 6px;
+    }
+    table.findings td.key {
+      position: absolute;
+      right: var(--card-pad);
+      top: 10px;
+    }
+    table.findings td.line2,
+    table.findings td.n {
+      font-size: 13px;
+      line-height: 18px;
+      color: var(--muted);
+      font-weight: 400;
+    }
+    table.findings td.line2::before,
+    table.findings td.n::before {
+      content: " · ";
+    }
+    table.findings td[data-label]::before {
+      content: " · " attr(data-label) " ";
+    }
+    table.findings td.id + td.line2::before,
+    table.findings td.id + td.n::before,
+    table.findings td.key::before {
+      content: none;
+    }
+    table.findings td.id + td[data-label]::before {
+      content: attr(data-label) " ";
+    }
+    table.findings td[data-unit]::after {
+      content: " " attr(data-unit);
+    }
+    table.findings td.quiet {
+      display: none;
+    }
+    table.findings td:empty {
+      display: none;
+    }
+    table.fold.findings td.id {
+      padding-right: 140px;
+    }
+    table.fold.findings td.id a,
+    table.fold.findings td.id .sub {
+      display: block;
+      margin-left: 0;
+      max-width: none;
     }
   }
   .warning {
@@ -613,6 +974,10 @@
     .title-row {
       flex-wrap: wrap;
       align-items: flex-start;
+    }
+    .title-row h1 {
+      font-size: 20px;
+      overflow-wrap: anywhere;
     }
     .section {
       margin-top: 36px;
@@ -651,6 +1016,24 @@
     }
     .kpi:last-child:nth-child(odd) {
       grid-column: 1 / -1;
+    }
+    .toolbar .search {
+      width: 100%;
+    }
+    .select {
+      max-width: calc(50% - 4px);
+      flex: 1 1 40%;
+    }
+    .fields li,
+    .pairs li {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 4px;
+    }
+    .capture {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .piece-head {
+      flex-wrap: wrap;
     }
     .kv {
       grid-template-columns: minmax(0, 1fr);
