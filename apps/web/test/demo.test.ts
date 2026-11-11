@@ -59,4 +59,41 @@ describe("demoClient", () => {
   it("answers a 404 for an assessment that is not there", async () => {
     await expect(client.getAssessment("a-000000000000")).rejects.toMatchObject({ status: 404 });
   });
+
+  it("lists the lab's findings with the API's filters, most severe first", async () => {
+    const all = await client.listFindings("a-juice-shop-lab", {});
+    expect(all.total).toBe(37);
+    expect(all.items).toHaveLength(37);
+    expect(all.items[0]!.risk.severity).toBe("critical");
+    expect(all.items.at(-1)!.risk.severity).toBe("info");
+    expect((await client.listFindings("a-juice-shop-lab", { severity: "critical" })).total).toBe(4);
+    expect((await client.listFindings("a-juice-shop-lab", { tool: "zap" })).total).toBe(6);
+    expect((await client.listFindings("a-juice-shop-lab", { phase: "recon" })).total).toBe(4);
+    expect((await client.listFindings("a-juice-shop-lab", { owasp: "A05" })).total).toBe(6);
+    expect((await client.listFindings("a-juice-shop-lab", { q: "sanitize-html" })).items.map((f) => f.scope)).toEqual(["sanitize-html@1.4.2", "sanitize-html@1.4.2"]);
+    await expect(client.listFindings("a-000000000000", {})).rejects.toMatchObject({ status: 404 });
+  });
+
+  it("reads one finding with its asset and its evidence, and a 404 for one that is not there", async () => {
+    const { items } = await client.listFindings("a-juice-shop-lab", { tool: "nuclei", q: "CORS" });
+    const f = await client.getFinding(items[0]!.id);
+    expect(f.title).toBe("CORS Misconfiguration: arbitrary-origin");
+    expect(f.asset).toMatchObject({ kind: "web-app", url: "http://127.0.0.1:3000" });
+    expect(f.sources.map((s) => s.tool)).toEqual(["nuclei", "zap"]);
+    expect(f.evidence).toHaveLength(2);
+    expect(f.evidence[0]!.kind).toBe("request-response");
+    await expect(client.getFinding("f-000000000000")).rejects.toMatchObject({ status: 404, message: "finding not found" });
+  });
+
+  it("stores a CVSS vector as the finding's risk and the totals follow", async () => {
+    const { items } = await client.listFindings("a-juice-shop-lab", { q: "CORS" });
+    const before = await client.getAssessment("a-juice-shop-lab");
+    const risk = { severity: "high" as const, cvss: { vector: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N", baseScore: 7.5 } };
+    const updated = await client.updateFinding(items[0]!.id, { risk });
+    expect(updated.risk).toEqual(risk);
+    const after = await client.getAssessment("a-juice-shop-lab");
+    expect(after.totals.bySeverity.high).toBe(before.totals.bySeverity.high + 1);
+    expect(after.totals.bySeverity.medium).toBe(before.totals.bySeverity.medium - 1);
+    await expect(client.updateFinding(items[0]!.id, { risk: { severity: "low", cvss: risk.cvss } })).rejects.toMatchObject({ status: 400 });
+  });
 });

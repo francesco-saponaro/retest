@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { count, findingLine, phaseLine, relativeDay, relativeTime, scopeLine, verifiedCount } from "../src/lib/format.js";
+import { PHASES } from "@retest/schema";
+import { count, findingLine, findingState, findingsLine, headline, phaseLine, relativeDay, relativeTime, scopeLine, shortPhase, verifiedCount } from "../src/lib/format.js";
 import { totalsOf } from "./fake.js";
+import { cors, detailOf, juiceFindings, jwt, login, manyFindings, summaryOf } from "./findings.js";
 
 describe("phaseLine", () => {
   it("says which of the six phases, with its label", () => {
@@ -69,3 +71,47 @@ describe("findingLine", () => {
     expect(findingLine(totalsOf({}))).toBe("No findings and no assets yet: nothing has been imported.");
   });
 });
+
+describe("shortPhase", () => {
+  it("names each phase in one word", () => {
+    expect(PHASES.map(shortPhase)).toEqual(["Scope", "Recon", "Assessment", "Validation", "Risk", "Remediation"]);
+  });
+});
+
+describe("findingsLine", () => {
+  const all = juiceFindings.map(summaryOf);
+  it("counts what is shown, by severity, and whether any has been validated", () => {
+    expect(findingsLine({ all: 5, matched: 5, items: all, filtered: false })).toBe("5 findings: 2 critical, 1 high, 1 medium; none has reached validation.");
+    expect(findingsLine({ all: 5, matched: 2, items: all.filter((f) => f.risk.severity === "critical"), filtered: true })).toBe("2 of 5 findings match: 2 critical; none has reached validation.");
+  });
+  it("says so when nothing is there, and why", () => {
+    expect(findingsLine({ all: 0, matched: 0, items: [], filtered: false })).toBe("No findings yet: nothing has been imported.");
+    expect(findingsLine({ all: 5, matched: 0, items: [], filtered: true })).toBe("0 of 5 findings match.");
+  });
+  it("counts the verified ones and says when the page is cut", () => {
+    const verified = all.map((f, i) => ({ ...f, phase: i < 2 ? ("validation" as const) : f.phase }));
+    expect(findingsLine({ all: 5, matched: 5, items: verified, filtered: false })).toBe("5 findings: 2 critical, 1 high, 1 medium; 2 verified.");
+    expect(findingsLine({ all: 900, matched: 900, items: manyFindings(500), filtered: false })).toBe("The first 500 of 900 findings; narrow them with the filters.");
+  });
+});
+
+describe("findingState", () => {
+  const now = new Date("2026-11-10T21:00:00Z");
+  it("says where the finding came from and whether anyone has looked at it", () => {
+    expect(findingState(detailOf(jwt), now)).toMatch(/^Critical on bkimminich\/juice-shop:v17\.1\.1, reported by trivy today \d\d:\d\d\. Still what a scanner said: nobody has validated it\.$/);
+    expect(findingState(detailOf(cors), now)).toMatch(/^Medium on http:\/\/127\.0\.0\.1:3000, reported by nuclei and zap today \d\d:\d\d\. Still what a scanner said: nobody has validated it\.$/);
+    expect(findingState(detailOf({ ...login, phase: "validation" }), now)).toMatch(/Being validated\.$/);
+    expect(findingState(detailOf({ ...login, phase: "remediation" }), now)).toMatch(/Validated; waiting on the fix and the retest\.$/);
+    expect(findingState(detailOf({ ...login, status: "false-positive", falsePositiveReason: "test code" }), now)).toMatch(/Marked a false positive: test code\.$/);
+  });
+});
+
+describe("headline", () => {
+  it("keeps a short title, takes the part before a tool's colon, and otherwise cuts at a word", () => {
+    expect(headline("CORS Misconfiguration: arbitrary-origin")).toBe("CORS Misconfiguration: arbitrary-origin");
+    expect(headline("CVE-2015-9235 in jsonwebtoken 0.4.0: Verification Bypass in jsonwebtoken")).toBe("CVE-2015-9235 in jsonwebtoken 0.4.0");
+    expect(headline("S3 Bucket juice-shop-uploads has public access due to bucket policy")).toBe("S3 Bucket juice-shop-uploads has public access due…");
+    expect(headline("Security group lab-web (sg-0f3a9c1d2e4b5a6c7) has SSH port 22 open to the Internet")).toBe("Security group lab-web (sg-0f3a9c1d2e4b5a6c7) has…");
+  });
+});
+

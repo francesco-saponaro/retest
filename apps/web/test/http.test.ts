@@ -69,4 +69,38 @@ describe("httpClient", () => {
     await client.getAssessment("a/../b");
     expect(String(fetch.mock.calls[0]![0])).toBe("/api/assessments/a%2F..%2Fb");
   });
+
+  it("lists findings with the filters as query parameters, only the ones that are set", async () => {
+    const fetch = fakeFetch(200, { items: [], total: 0, limit: 500, offset: 0 });
+    const client = httpClient({ baseUrl: "/api", token: () => "tok", fetch });
+    await client.listFindings("a-1", {});
+    await client.listFindings("a-1", { severity: "critical", tool: "zap", phase: "assessment", owasp: "A01", assetId: "asset-web", q: "cors & co" });
+    expect(fetch.mock.calls.map((c) => String(c[0]))).toEqual(["/api/assessments/a-1/findings?limit=500", "/api/assessments/a-1/findings?severity=critical&tool=zap&phase=assessment&owasp=A01&assetId=asset-web&q=cors+%26+co&limit=500"]);
+    expect(await client.listFindings("a-1", {})).toEqual({ items: [], total: 0, limit: 500, offset: 0 });
+  });
+
+  it("reads one finding by its id", async () => {
+    const fetch = fakeFetch(200, { id: "f-1", asset: { id: "asset-1" } });
+    const client = httpClient({ baseUrl: "/api", token: () => "tok", fetch });
+    expect(await client.getFinding("f-1")).toEqual({ id: "f-1", asset: { id: "asset-1" } });
+    expect(String(fetch.mock.calls[0]![0])).toBe("/api/findings/f-1");
+  });
+
+  it("patches a finding as JSON", async () => {
+    const fetch = fakeFetch(200, { id: "f-1", risk: { severity: "high" } });
+    const client = httpClient({ baseUrl: "/api", token: () => "tok", fetch });
+    const risk = { severity: "high" as const, cvss: { vector: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N", baseScore: 7.5 } };
+    expect(await client.updateFinding("f-1", { risk })).toEqual({ id: "f-1", risk: { severity: "high" } });
+    const [url, init] = fetch.mock.calls[0]!;
+    expect(String(url)).toBe("/api/findings/f-1");
+    expect(init?.method).toBe("PATCH");
+    expect(new Headers(init?.headers).get("content-type")).toBe("application/json");
+    expect(new Headers(init?.headers).get("authorization")).toBe("Bearer tok");
+    expect(JSON.parse(String(init?.body))).toEqual({ risk });
+  });
+
+  it("gives the API's validation message when a patch is refused", async () => {
+    const client = httpClient({ baseUrl: "/api", token: () => "tok", fetch: fakeFetch(400, { error: "invalid body", issues: [{ path: "risk.severity", message: "severity does not match the CVSS score" }] }) });
+    await expect(client.updateFinding("f-1", { risk: { severity: "low" } })).rejects.toMatchObject({ status: 400, message: "invalid body: risk.severity severity does not match the CVSS score" });
+  });
 });

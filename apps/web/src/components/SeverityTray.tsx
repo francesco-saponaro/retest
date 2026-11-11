@@ -1,8 +1,6 @@
-import { SEVERITIES, SEVERITY_LABELS, type Severity } from "@retest/schema";
+import { SEVERITY_LABELS } from "@retest/schema";
 import type { Totals } from "../api/client.js";
-
-/** Critical first, the way a report lists them. */
-export const REPORT_ORDER: readonly Severity[] = [...SEVERITIES].reverse();
+import { REPORT_ORDER } from "../lib/format.js";
 
 /**
  * The findings by severity: five cells in one strip, and under them the whole as one bar of

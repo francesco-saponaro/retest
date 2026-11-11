@@ -1,7 +1,8 @@
-import type { Asset, Phase } from "@retest/schema";
-import type { AuditLine, ImportOut } from "@retest/api/rows.js";
+import type { Asset, Finding, Phase } from "@retest/schema";
+import type { AuditLine, FindingSummary, ImportOut } from "@retest/api/rows.js";
 import type { Totals } from "@retest/api/services/assessments.js";
-import { ApiError, type ApiClient, type AssessmentDetail, type AssessmentSummary } from "../src/api/client.js";
+import { ApiError, type ApiClient, type AssessmentDetail, type AssessmentSummary, type FindingFilter } from "../src/api/client.js";
+import { detailOf, juiceFindings, summaryOf } from "./findings.js";
 
 /** Totals with every bucket at zero unless given; the finding count is the sum of the phases. */
 export function totalsOf(byPhase: Partial<Record<Phase, number>>, extra: Partial<Totals> = {}): Totals {
@@ -50,6 +51,12 @@ export const juiceDetail: AssessmentDetail = {
   ),
 };
 
+/** The same assessment with totals that agree with the five fake findings, for the table's tests. */
+export const juiceFive: AssessmentDetail = {
+  ...juice,
+  totals: totalsOf({ recon: 1, assessment: 4 }, { assets: 5, bySeverity: { critical: 2, high: 1, medium: 1, low: 0, info: 1 }, byStatus: { open: 5, "false-positive": 0, "accepted-risk": 0, closed: 0 } }),
+};
+
 export const juiceAssets: Asset[] = [
   { id: "asset-host-127-0-0-1", assessmentId: "a-juice", kind: "host", name: "127.0.0.1", host: "127.0.0.1", inScope: true, tags: [] },
   { id: "asset-web-127-0-0-1-3000", assessmentId: "a-juice", kind: "web-app", name: "http://127.0.0.1:3000", url: "http://127.0.0.1:3000", inScope: true, tags: [] },
@@ -71,9 +78,24 @@ export const juiceAudit: AuditLine[] = [
   { id: 3, assessmentId: "a-juice", findingId: null, actor: "francesco", action: "import", field: "nmap", from: null, to: "4 created", reason: null, at },
 ];
 
+/** The findings the fake client lists, filtered in memory the way the API filters them. */
+export function filterFindings(items: FindingSummary[], f: FindingFilter): FindingSummary[] {
+  const q = f.q?.toLowerCase();
+  return items.filter(
+    (x) =>
+      (!f.severity || x.risk.severity === f.severity) &&
+      (!f.phase || x.phase === f.phase) &&
+      (!f.tool || x.sources.some((s) => s.tool === f.tool)) &&
+      (!f.owasp || x.mappings.owaspTop10.includes(f.owasp)) &&
+      (!f.assetId || x.assetId === f.assetId) &&
+      (!q || x.title.toLowerCase().includes(q) || x.scope.toLowerCase().includes(q)),
+  );
+}
+
 /** A client that answers from the objects above, as the API would. */
 export function fakeClient(overrides: Partial<ApiClient> = {}): ApiClient {
-  const notFound = () => Promise.reject(new ApiError(404, "assessment not found"));
+  const notFound = (what = "assessment") => Promise.reject(new ApiError(404, `${what} not found`));
+  const findings = new Map(juiceFindings.map((f) => [f.id, structuredClone(f)]));
   return {
     mode: "api",
     listAssessments: async () => [juice, network],
@@ -81,6 +103,22 @@ export function fakeClient(overrides: Partial<ApiClient> = {}): ApiClient {
     listAssets: async (id) => (id === "a-juice" ? juiceAssets : notFound()),
     listImports: async (id) => (id === "a-juice" ? juiceImports : notFound()),
     listAudit: async (id) => (id === "a-juice" ? juiceAudit : notFound()),
+    listFindings: async (id, filter) => {
+      if (id !== "a-juice") return notFound();
+      const items = filterFindings([...findings.values()].map(summaryOf), filter);
+      return { items, total: items.length, limit: 500, offset: 0 };
+    },
+    getFinding: async (fid) => {
+      const f = findings.get(fid);
+      return f ? detailOf(f) : notFound("finding");
+    },
+    updateFinding: async (fid, patch) => {
+      const f = findings.get(fid);
+      if (!f) return notFound("finding");
+      const updated: Finding = { ...f, ...(patch.risk ? { risk: patch.risk } : {}), updatedAt: "2026-11-11T20:00:00.000Z" };
+      findings.set(fid, updated);
+      return updated;
+    },
     ...overrides,
   };
 }
