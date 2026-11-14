@@ -9,7 +9,25 @@ import { toAssessment } from "@retest/api/rows.js";
 import { createAssessment, listAssessments, loadAssessment, requireAssessment, setAssessmentPhase, setAssessmentStatus, totals } from "@retest/api/services/assessments.js";
 import { listAssets } from "@retest/api/services/assets.js";
 import { listAudit } from "@retest/api/services/audit.js";
-import { FindingPatchSchema, FindingsQuerySchema, findingDetail, listFindings, requireFinding, updateFinding } from "@retest/api/services/findings.js";
+import {
+  EvidencePatchSchema,
+  FindingPatchSchema,
+  FindingPhaseSchema,
+  FindingStatusChangeSchema,
+  FindingsQuerySchema,
+  NewEvidenceSchema,
+  RetestBodySchema,
+  addEvidence,
+  findingDetail,
+  listFindings,
+  recordRetest,
+  requireEvidence,
+  requireFinding,
+  setFindingPhase,
+  setFindingStatus,
+  updateEvidence,
+  updateFinding,
+} from "@retest/api/services/findings.js";
 import { listImports, runImport } from "@retest/api/services/imports.js";
 import { validate } from "@retest/api/http.js";
 import tables from "../../../api/drizzle/0000_tables.sql?raw";
@@ -73,6 +91,36 @@ export async function demoClient(seededAt = new Date(), now: () => Date = () => 
         const body = validate(FindingPatchSchema, patch, "body");
         return updateFinding(db, (await requireFinding(db, fid, who)).finding, body, now());
       }),
+    setFindingPhase: (fid, change) =>
+      call(async () => {
+        const { phase, reason } = validate(FindingPhaseSchema, change, "body");
+        return setFindingPhase(db, (await requireFinding(db, fid, who)).finding, phase, who, reason, now());
+      }),
+    setFindingStatus: (fid, change) =>
+      call(async () => {
+        const { status, reason } = validate(FindingStatusChangeSchema, change, "body");
+        return setFindingStatus(db, (await requireFinding(db, fid, who)).finding, status, who, reason, now());
+      }),
+    recordRetest: (fid, input) =>
+      call(async () => {
+        const body = validate(RetestBodySchema, input, "body");
+        return recordRetest(db, (await requireFinding(db, fid, who)).finding, body, who, now());
+      }),
+    addEvidence: (fid, input) =>
+      call(async () => {
+        const body = validate(NewEvidenceSchema, input, "body");
+        return addEvidence(db, (await requireFinding(db, fid, who)).finding, body, now());
+      }),
+    updateEvidence: (eid, patch) =>
+      call(async () => {
+        const body = validate(EvidencePatchSchema, patch, "body");
+        return updateEvidence(db, (await requireEvidence(db, eid, who)).evidence, body);
+      }),
+    listFindingAudit: (fid) =>
+      call(async () => {
+        const { finding } = await requireFinding(db, fid, who);
+        return listAudit(db, finding.assessmentId, finding.id);
+      }),
     close: () => pg.close(),
   };
 }
@@ -101,4 +149,90 @@ async function seedDemo(db: Db, now: Date): Promise<void> {
 
   // The lab was authorised a quarter of an hour ago and its six imports followed, two minutes apart.
   await seedLab(db, { ownerId: DEMO_USER.sub, now: new Date(now.getTime() - 15 * 60 * 1000), read, assessmentId: "a-juice-shop-lab" });
+  await walkThrough(db, now);
+}
+
+const MINUTE = 60 * 1000;
+
+/**
+ * Three findings taken through the workflow after the imports, so the lab shows every state of it:
+ * one validated and rated, one marked a false positive, one in remediation with a retest that
+ * failed. Everything below goes through the API's own services and their rules; the evidence is
+ * what the lab's own commands print. Nothing is closed: the retest that closes one is left for
+ * whoever reads the finding, and the lab is remade on every reload.
+ */
+export async function walkThrough(db: Db, now: Date): Promise<void> {
+  const who = DEMO_USER;
+  const at = (minutesAgo: number) => new Date(now.getTime() - minutesAgo * MINUTE);
+  const find = async (id: string) => (await requireFinding(db, id, who)).finding;
+
+  // CORS: reproduced by hand, rated by the vector chapter 6 works out, waiting to be written up.
+  const cors = "f-9c67368df231";
+  await addEvidence(
+    db,
+    await find(cors),
+    {
+      kind: "command-output",
+      title: "curl with a foreign Origin",
+      content: [
+        "$ curl -si -H 'Origin: https://evil.example' http://127.0.0.1:3000/rest/user/whoami",
+        "HTTP/1.1 200 OK",
+        "Access-Control-Allow-Origin: *",
+        "Content-Type: application/json; charset=utf-8",
+        "",
+        '{"user":{}}',
+        "",
+        "$ for p in /rest/products/search?q= /api/Quantitys/; do curl -si -H 'Origin: https://evil.example' \"http://127.0.0.1:3000$p\" | grep -i access-control; done",
+        "Access-Control-Allow-Origin: *",
+        "Access-Control-Allow-Origin: *",
+      ].join("\n"),
+      redacted: true,
+      capturedAt: at(4).toISOString(),
+    },
+    at(4),
+  );
+  await setFindingPhase(db, await find(cors), "validation", who, "Reproduced against all three endpoints: the header is * and no Access-Control-Allow-Credentials is sent.", at(4));
+  await updateFinding(
+    db,
+    await find(cors),
+    {
+      impact:
+        "Any website a visitor opens can read the responses of these three endpoints from the visitor's browser. Because the header is *, the browser sends no cookie and no Authorization header with the cross-origin request, so what a third-party page can read is what an anonymous user can already read: the product list, the quantities, and the empty user that /rest/user/whoami gives anyone without a token. It becomes serious the day an endpoint behind this header returns private data, or the day the header reflects the origin with Access-Control-Allow-Credentials: true.",
+      risk: { severity: "medium", cvss: { vector: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N", baseScore: 5.3 } },
+    },
+    at(3),
+  );
+  await setFindingPhase(db, await find(cors), "risk", who, "Confidentiality low: the data behind the header is public anyway.", at(3));
+
+  // ZAP's timestamp alert on main.js: a number that looks like a date, checked and set aside.
+  await setFindingStatus(db, await find("f-83eaab78bf12"), "false-positive", who, "The ten digits ZAP matched in main.js are a constant in the minified Angular bundle, the same on every request; nothing about the server's clock is disclosed.", at(2));
+
+  // The jsonwebtoken CVE: confirmed in the container, written up, and retested against the same image.
+  const jwt = "f-7f910fa0b432";
+  await addEvidence(
+    db,
+    await find(jwt),
+    {
+      kind: "command-output",
+      title: "npm ls in the container",
+      content: ["$ docker compose exec juice-shop npm ls jsonwebtoken", "juice-shop@17.1.1 /juice-shop", "├─┬ express-jwt@0.1.3", "│ └── jsonwebtoken@0.4.0", "└── jsonwebtoken@0.4.0"].join("\n"),
+      redacted: true,
+      capturedAt: at(2).toISOString(),
+    },
+    at(2),
+  );
+  await setFindingPhase(db, await find(jwt), "validation", who, "The vulnerable version is installed, and lib/insecurity.ts verifies every authenticated request with it.", at(2));
+  await updateFinding(
+    db,
+    await find(jwt),
+    {
+      impact:
+        "jsonwebtoken 0.4.0 lets the token choose the algorithm. The app verifies with an RSA public key that it also serves to the browser, so a token signed with HS256 using that public key as the secret passes verification. Anyone can forge a token for any account, the admin's included, and every authenticated route accepts it.",
+      fix: "Upgrade jsonwebtoken to 9.x and pass algorithms: ['RS256'] to verify, so the algorithm is the server's choice and not the token's. Check: a token signed HS256 with the public key must be refused.",
+    },
+    at(1),
+  );
+  await setFindingPhase(db, await find(jwt), "risk", who, undefined, at(1));
+  await setFindingPhase(db, await find(jwt), "remediation", who, undefined, at(1));
+  await recordRetest(db, await find(jwt), { outcome: "not-fixed", notes: "The image still ships jsonwebtoken 0.4.0 and the forged HS256 token is still accepted. Juice Shop pins the version on purpose, so this stays open until the lab runs a patched build." }, who, at(1));
 }

@@ -1,5 +1,5 @@
-import { PHASES, PHASE_DETAILS, SEVERITIES, SEVERITY_LABELS, isPhaseAfter, type Phase, type Scope, type Severity } from "@retest/schema";
-import type { FindingDetail, FindingSummary, Totals } from "../api/client.js";
+import { PHASES, PHASE_DETAILS, SEVERITIES, SEVERITY_LABELS, isPhaseAfter, nextPhase, type Phase, type Scope, type Severity } from "@retest/schema";
+import type { AuditLine, FindingDetail, FindingSummary, Totals } from "../api/client.js";
 
 /** Critical first, the way a report lists them. */
 export const REPORT_ORDER: readonly Severity[] = [...SEVERITIES].reverse();
@@ -125,7 +125,7 @@ export function toolList(tools: readonly string[]): string {
 /** The one line under a finding's title: where it came from, and whether anybody has looked at it. */
 export function findingState(f: Pick<FindingDetail, "risk" | "asset" | "sources" | "createdAt" | "phase" | "status" | "falsePositiveReason">, now = new Date()): string {
   const head = `${SEVERITY_LABELS[f.risk.severity]} on ${f.asset.name}, reported by ${toolList(f.sources.map((s) => s.tool))} ${relativeTime(f.createdAt, now)}.`;
-  if (f.status === "false-positive") return `${head} Marked a false positive${f.falsePositiveReason ? `: ${f.falsePositiveReason}` : ""}.`;
+  if (f.status === "false-positive") return `${head} Marked a false positive${f.falsePositiveReason ? `: ${f.falsePositiveReason.replace(/\.\s*$/, "")}` : ""}.`;
   if (f.status === "accepted-risk") return `${head} The risk has been accepted.`;
   if (f.status === "closed") return `${head} Closed: the retest found it fixed.`;
   switch (f.phase) {
@@ -154,3 +154,51 @@ export function headline(title: string, max = 52): string {
   return `${(space >= 24 ? cut.slice(0, space) : cut).replace(/[\s:,;-]+$/, "")}…`;
 }
 
+/** The phase after this one, with the words for the button that moves there; null at the end. */
+export function nextStep(phase: Phase): { phase: Phase; label: string } | null {
+  const next = nextPhase(phase);
+  return next ? { phase: next, label: `Move to ${PHASE_DETAILS[next].label.toLowerCase().split(" / ")[0]}` } : null;
+}
+
+const phaseWords = (p: string | null) => (p && p in PHASE_DETAILS ? PHASE_DETAILS[p as Phase].label.toLowerCase() : (p ?? "nowhere"));
+
+/**
+ * One audit line as a sentence without its subject, so a screen can put the actor and, for a
+ * finding's line, the finding's name in front of it: "moved it from vulnerability assessment to
+ * validation / exploitation", "imported nmap/juice-shop.xml with nmap: 4 parsed, 4 created, 0 merged".
+ */
+export function auditSentence(l: Pick<AuditLine, "action" | "field" | "from" | "to" | "findingId">): string {
+  const it = l.findingId ? "it" : "the assessment";
+  switch (l.action) {
+    case "import":
+      return `imported ${l.from ? `${l.from} with ${l.field}` : `a ${l.field} file`}: ${l.to ?? ""}`.trim();
+    case "phase":
+      return `moved ${it} from ${phaseWords(l.from)} to ${phaseWords(l.to)}`;
+    case "retest":
+      return `retested ${it}: ${(l.to ?? "pending").replace("-", " ")}`;
+    case "status":
+      if (!l.findingId) return `set the assessment ${l.to ?? ""}`.trim();
+      switch (l.to) {
+        case "false-positive":
+          return "marked it a false positive";
+        case "accepted-risk":
+          return "accepted the risk";
+        case "closed":
+          return "closed it";
+        case "open":
+          return "reopened it";
+        default:
+          return `set it ${l.to ?? ""}`.trim();
+      }
+  }
+}
+
+/** "16 entries: 6 imports, 7 phase changes, 2 status changes, 1 retest; newest first." */
+export function historyLine(lines: Pick<AuditLine, "action">[]): string {
+  if (lines.length === 0) return "Nothing has happened yet.";
+  const by = new Map<AuditLine["action"], number>();
+  for (const l of lines) by.set(l.action, (by.get(l.action) ?? 0) + 1);
+  const nouns: Record<AuditLine["action"], string> = { import: "import", phase: "phase change", status: "status change", retest: "retest" };
+  const parts = (["import", "phase", "status", "retest"] as const).filter((a) => by.has(a)).map((a) => count(by.get(a)!, nouns[a]));
+  return `${count(lines.length, "entry")}: ${parts.join(", ")}${lines.length > 1 ? "; newest first" : ""}.`;
+}

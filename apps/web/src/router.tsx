@@ -2,11 +2,12 @@ import { QueryClientProvider, type QueryClient } from "@tanstack/react-query";
 import { createRootRouteWithContext, createRoute, createRouter, notFound, Outlet, type RouterHistory } from "@tanstack/react-router";
 import { OWASP_TOP_10_2021_IDS, PHASES, SEVERITIES, TOOLS } from "@retest/schema";
 import { ApiError, type ApiClient, type FindingFilter } from "./api/client.js";
-import { assessmentQuery, assessmentsQuery, assetsQuery, findingQuery, findingsQuery, importsQuery } from "./queries.js";
+import { assessmentQuery, assessmentsQuery, assetsQuery, auditQuery, findingAuditQuery, findingQuery, findingsQuery, importsQuery } from "./queries.js";
 import { Assessments, AssessmentsFailed } from "./screens/Assessments.js";
 import { Connect } from "./screens/Connect.js";
 import { Finding, FindingFailed, FindingNotFound } from "./screens/Finding.js";
 import { Findings, FindingsFailed } from "./screens/Findings.js";
+import { History, HistoryFailed } from "./screens/History.js";
 import { Overview, OverviewFailed, OverviewNotFound } from "./screens/Overview.js";
 import { Shell } from "./screens/Shell.js";
 
@@ -17,8 +18,8 @@ export interface RouterContext {
 
 /**
  * The routes, written in code: `/` the assessments, `/a/:id` one assessment's overview,
- * `/a/:id/findings` its findings table, `/a/:id/findings/:fid` one finding, `/connect` the token for
- * the API. Each loader fills the query cache so the screen renders with its data, and a 404 from
+ * `/a/:id/findings` its findings table, `/a/:id/findings/:fid` one finding, `/a/:id/audit` its
+ * history, `/connect` the token for the API. Each loader fills the query cache so the screen renders with its data, and a 404 from
  * the API becomes the route's not-found view rather than a broken page.
  */
 export const rootRoute = createRootRouteWithContext<RouterContext>()({
@@ -55,6 +56,7 @@ export const assessmentRoute = createRoute({
     // The rest of the screen loads in its own blocks; start them now so they are usually there on arrival.
     void context.queryClient.prefetchQuery(assetsQuery(context.client, params.id));
     void context.queryClient.prefetchQuery(importsQuery(context.client, params.id));
+    void context.queryClient.prefetchQuery(auditQuery(context.client, params.id));
   },
   component: Overview,
   errorComponent: OverviewFailed,
@@ -109,10 +111,24 @@ export const findingRoute = createRoute({
       if (e instanceof ApiError && e.status === 404) throw notFound();
       throw e;
     }
+    void context.queryClient.prefetchQuery(findingAuditQuery(context.client, params.fid));
   },
   component: Finding,
   errorComponent: FindingFailed,
   notFoundComponent: FindingNotFound,
+});
+
+export const auditRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/a/$id/audit",
+  loader: async ({ context, params }) => {
+    await ensureAssessment(context, params.id);
+    void context.queryClient.prefetchQuery(auditQuery(context.client, params.id));
+    void context.queryClient.prefetchQuery(findingsQuery(context.client, params.id, {}));
+  },
+  component: History,
+  errorComponent: HistoryFailed,
+  notFoundComponent: OverviewNotFound,
 });
 
 export const connectRoute = createRoute({
@@ -121,7 +137,7 @@ export const connectRoute = createRoute({
   component: Connect,
 });
 
-const routeTree = rootRoute.addChildren([assessmentsRoute, assessmentRoute, findingsRoute, findingRoute, connectRoute]);
+const routeTree = rootRoute.addChildren([assessmentsRoute, assessmentRoute, findingsRoute, findingRoute, auditRoute, connectRoute]);
 
 export function createAppRouter(options: { client: ApiClient; queryClient: QueryClient; history?: RouterHistory }) {
   const router = createRouter({

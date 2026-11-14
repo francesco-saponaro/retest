@@ -99,7 +99,7 @@ export const login = finding({
   risk: { severity: "high" },
   sources: [{ tool: "semgrep", rawId: "javascript.sequelize.security.audit.sequelize-injection-express.express-sequelize-injection@routes/login.ts:34", severity: "high" }],
   mappings: { cwe: [89], cve: [], owaspTop10: ["A03"], owaspApi: [], asvs: ["V5"], cis: [16] },
-  evidence: [{ id: "ev-login-1", findingId: "f-login", kind: "scanner-output", title: "routes/login.ts:34-36", content: "models.sequelize.query(`SELECT * FROM Users WHERE email = '${req.body.email || ''}'`)", redacted: false }],
+  evidence: [{ id: "ev-login-1", findingId: "f-login", kind: "scanner-output", title: "routes/login.ts:34-36", content: "models.sequelize.query(`SELECT * FROM Users WHERE email = '${req.body.email || ''}'`)", redacted: false, source: { tool: "semgrep", rawId: "javascript.sequelize.security.audit.sequelize-injection-express.express-sequelize-injection@routes/login.ts:34" } }],
 });
 
 export const http = finding({
@@ -123,7 +123,29 @@ export const mfa = finding({
   mappings: { cwe: [308], cve: [], owaspTop10: ["A07"], owaspApi: ["API2"], asvs: ["V2"], cis: [5, 6] },
 });
 
-export const juiceFindings: Finding[] = [jwt, mfa, login, cors, http];
+/** A finding a person has carried to remediation: validated with their own capture, rated, the impact and the fix written, a first retest that failed. */
+export const csp = finding({
+  id: "f-csp",
+  title: "HTTP Missing Security Headers: content-security-policy",
+  assetId: "asset-web-127-0-0-1-3000",
+  scope: "GET /, GET /ftp, GET /robots.txt",
+  risk: { severity: "medium" },
+  phase: "remediation",
+  impact: "Without a Content-Security-Policy, a script injected anywhere in the app runs with no restriction on where it loads from or sends to; every XSS in the app is as bad as it can be.",
+  fix: "Send Content-Security-Policy from the server for every HTML response, starting with default-src 'self' and the script and connect sources the app really uses.",
+  retest: { outcome: "not-fixed", testedAt: "2026-11-13T18:00:00.000Z", notes: "No Content-Security-Policy header on GET / after the deploy." },
+  sources: [
+    { tool: "nuclei", rawId: "http-missing-security-headers:content-security-policy", severity: "info" },
+    { tool: "zap", rawId: "10038", severity: "medium", reference: "https://www.zaproxy.org/docs/alerts/10038/" },
+  ],
+  mappings: { cwe: [693], cve: [], owaspTop10: ["A05"], owaspApi: ["API8"], asvs: ["V14"], cis: [16] },
+  evidence: [
+    { id: "ev-csp-1", findingId: "f-csp", kind: "scanner-output", title: "GET /", content: "content-security-policy: missing", redacted: true, source: { tool: "nuclei", rawId: "http-missing-security-headers:content-security-policy" } },
+    { id: "ev-csp-2", findingId: "f-csp", kind: "command-output", title: "curl -sI on the three paths", content: "$ curl -sI http://127.0.0.1:3000/ | grep -ci content-security-policy\n0", redacted: true, capturedAt: "2026-11-12T18:00:00.000Z" },
+  ],
+});
+
+export const juiceFindings: Finding[] = [jwt, mfa, login, cors, csp, http];
 
 export function summaryOf(f: Finding): FindingSummary {
   const { evidence, ...rest } = f;

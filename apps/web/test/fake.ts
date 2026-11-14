@@ -1,4 +1,4 @@
-import type { Asset, Finding, Phase } from "@retest/schema";
+import { phaseChangeProblem, retestProblem, statusChangeProblem, type Asset, type Evidence, type Finding, type Phase } from "@retest/schema";
 import type { AuditLine, FindingSummary, ImportOut } from "@retest/api/rows.js";
 import type { Totals } from "@retest/api/services/assessments.js";
 import { ApiError, type ApiClient, type AssessmentDetail, type AssessmentSummary, type FindingFilter } from "../src/api/client.js";
@@ -51,10 +51,10 @@ export const juiceDetail: AssessmentDetail = {
   ),
 };
 
-/** The same assessment with totals that agree with the five fake findings, for the table's tests. */
-export const juiceFive: AssessmentDetail = {
+/** The same assessment with totals that agree with the six fake findings, for the table's tests. */
+export const juiceSix: AssessmentDetail = {
   ...juice,
-  totals: totalsOf({ recon: 1, assessment: 4 }, { assets: 5, bySeverity: { critical: 2, high: 1, medium: 1, low: 0, info: 1 }, byStatus: { open: 5, "false-positive": 0, "accepted-risk": 0, closed: 0 } }),
+  totals: totalsOf({ recon: 1, assessment: 4, remediation: 1 }, { assets: 5, bySeverity: { critical: 2, high: 1, medium: 2, low: 0, info: 1 }, byStatus: { open: 6, "false-positive": 0, "accepted-risk": 0, closed: 0 } }),
 };
 
 export const juiceAssets: Asset[] = [
@@ -75,7 +75,11 @@ export const juiceImports: ImportOut[] = [
 export const juiceAudit: AuditLine[] = [
   { id: 1, assessmentId: "a-juice", findingId: null, actor: "francesco", action: "status", field: "status", from: "draft", to: "active", reason: "The lab is mine to scan.", at },
   { id: 2, assessmentId: "a-juice", findingId: null, actor: "francesco", action: "phase", field: "phase", from: "scope", to: "assessment", reason: "Scope and recon done by the lab script.", at },
-  { id: 3, assessmentId: "a-juice", findingId: null, actor: "francesco", action: "import", field: "nmap", from: null, to: "4 created", reason: null, at },
+  { id: 3, assessmentId: "a-juice", findingId: null, actor: "francesco", action: "import", field: "nmap", from: "nmap/juice-shop.xml", to: "4 parsed, 4 created, 0 merged", reason: null, at },
+  { id: 4, assessmentId: "a-juice", findingId: "f-csp", actor: "francesco", action: "phase", field: "phase", from: "assessment", to: "validation", reason: "No CSP header on any of the three paths.", at: "2026-11-12T18:00:00.000Z" },
+  { id: 5, assessmentId: "a-juice", findingId: "f-csp", actor: "francesco", action: "phase", field: "phase", from: "validation", to: "risk", reason: null, at: "2026-11-12T18:10:00.000Z" },
+  { id: 6, assessmentId: "a-juice", findingId: "f-csp", actor: "francesco", action: "phase", field: "phase", from: "risk", to: "remediation", reason: null, at: "2026-11-12T18:20:00.000Z" },
+  { id: 7, assessmentId: "a-juice", findingId: "f-csp", actor: "francesco", action: "retest", field: "retest", from: null, to: "not-fixed", reason: "No Content-Security-Policy header on GET / after the deploy.", at: "2026-11-13T18:00:00.000Z" },
 ];
 
 /** The findings the fake client lists, filtered in memory the way the API filters them. */
@@ -92,17 +96,33 @@ export function filterFindings(items: FindingSummary[], f: FindingFilter): Findi
   );
 }
 
-/** A client that answers from the objects above, as the API would. */
+/**
+ * A client that answers from the objects above, as the API would. The workflow calls apply the
+ * schema's own rules and refuse with the same sentences and the same 409.
+ */
 export function fakeClient(overrides: Partial<ApiClient> = {}): ApiClient {
   const notFound = (what = "assessment") => Promise.reject(new ApiError(404, `${what} not found`));
   const findings = new Map(juiceFindings.map((f) => [f.id, structuredClone(f)]));
+  const audit: AuditLine[] = structuredClone(juiceAudit);
+  const stamp = "2026-11-14T20:00:00.000Z";
+  const must = (fid: string): Finding => {
+    const f = findings.get(fid);
+    if (!f) throw new ApiError(404, "finding not found");
+    return f;
+  };
+  const line = (f: Finding, action: AuditLine["action"], from: string | null, to: string | null, reason?: string) => {
+    audit.push({ id: audit.length + 1, assessmentId: f.assessmentId, findingId: f.id, actor: "francesco", action, field: action, from, to, reason: reason ?? null, at: stamp });
+  };
+  const refuse = (problem: string | null) => {
+    if (problem) throw new ApiError(409, problem);
+  };
   return {
     mode: "api",
     listAssessments: async () => [juice, network],
     getAssessment: async (id) => (id === "a-juice" ? juiceDetail : notFound()),
     listAssets: async (id) => (id === "a-juice" ? juiceAssets : notFound()),
     listImports: async (id) => (id === "a-juice" ? juiceImports : notFound()),
-    listAudit: async (id) => (id === "a-juice" ? juiceAudit : notFound()),
+    listAudit: async (id) => (id === "a-juice" ? audit : notFound()),
     listFindings: async (id, filter) => {
       if (id !== "a-juice") return notFound();
       const items = filterFindings([...findings.values()].map(summaryOf), filter);
@@ -113,11 +133,63 @@ export function fakeClient(overrides: Partial<ApiClient> = {}): ApiClient {
       return f ? detailOf(f) : notFound("finding");
     },
     updateFinding: async (fid, patch) => {
-      const f = findings.get(fid);
-      if (!f) return notFound("finding");
-      const updated: Finding = { ...f, ...(patch.risk ? { risk: patch.risk } : {}), updatedAt: "2026-11-11T20:00:00.000Z" };
+      const f = must(fid);
+      refuse(f.status === "closed" ? "the finding is closed: the retest found it fixed; reopen it first" : null);
+      const updated: Finding = { ...f, ...(patch.risk ? { risk: patch.risk } : {}), ...(patch.impact !== undefined ? { impact: patch.impact } : {}), ...(patch.fix !== undefined ? { fix: patch.fix } : {}), updatedAt: stamp };
       findings.set(fid, updated);
       return updated;
+    },
+    setFindingPhase: async (fid, { phase, reason }) => {
+      const f = must(fid);
+      refuse(phaseChangeProblem(f, phase, reason));
+      if (f.phase !== phase) {
+        line(f, "phase", f.phase, phase, reason);
+        findings.set(fid, { ...f, phase, updatedAt: stamp });
+      }
+      return must(fid);
+    },
+    setFindingStatus: async (fid, { status, reason }) => {
+      const f = must(fid);
+      refuse(statusChangeProblem(f, status, reason));
+      const phase: Phase = status === "false-positive" && (f.phase === "scope" || f.phase === "recon" || f.phase === "assessment") ? "validation" : f.phase;
+      if (phase !== f.phase) line(f, "phase", f.phase, phase, "Found to be a false positive.");
+      line(f, "status", f.status, status, reason);
+      const next: Finding = { ...f, status, phase, updatedAt: stamp };
+      if (status === "false-positive") next.falsePositiveReason = reason!;
+      else delete next.falsePositiveReason;
+      findings.set(fid, next);
+      return next;
+    },
+    recordRetest: async (fid, input) => {
+      const f = must(fid);
+      refuse(retestProblem(f, input.outcome));
+      const retest = { outcome: input.outcome, testedAt: input.testedAt ?? stamp, notes: input.notes };
+      line(f, "retest", f.retest?.outcome ?? null, input.outcome, input.notes);
+      const status = input.outcome === "fixed" ? "closed" : f.status;
+      if (status !== f.status) line(f, "status", f.status, status, "The retest found it fixed.");
+      const next: Finding = { ...f, retest, status, updatedAt: stamp };
+      findings.set(fid, next);
+      return next;
+    },
+    addEvidence: async (fid, input) => {
+      const f = must(fid);
+      const piece: Evidence = { id: `ev-new-${f.evidence.length + 1}`, findingId: fid, kind: input.kind, content: input.content, redacted: input.redacted ?? false, ...(input.title ? { title: input.title } : {}) };
+      findings.set(fid, { ...f, evidence: [...f.evidence, piece], updatedAt: stamp });
+      return piece;
+    },
+    updateEvidence: async (eid, patch) => {
+      for (const f of findings.values()) {
+        const i = f.evidence.findIndex((e) => e.id === eid);
+        if (i < 0) continue;
+        const piece: Evidence = { ...f.evidence[i]!, ...(patch.content !== undefined ? { content: patch.content } : {}), ...(patch.redacted !== undefined ? { redacted: patch.redacted } : {}), ...(patch.title !== undefined ? { title: patch.title } : {}) };
+        findings.set(f.id, { ...f, evidence: f.evidence.map((e, j) => (j === i ? piece : e)) });
+        return piece;
+      }
+      throw new ApiError(404, "evidence not found");
+    },
+    listFindingAudit: async (fid) => {
+      must(fid);
+      return audit.filter((l) => l.findingId === fid);
     },
     ...overrides,
   };

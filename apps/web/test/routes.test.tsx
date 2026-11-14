@@ -5,7 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { ApiError, type ApiClient } from "../src/api/client.js";
 import { createAppRouter } from "../src/router.js";
-import { fakeClient, juiceFive } from "./fake.js";
+import { fakeClient, juiceSix } from "./fake.js";
 import { manyFindings } from "./findings.js";
 
 function mount(path: string, client: ApiClient = fakeClient()) {
@@ -15,9 +15,9 @@ function mount(path: string, client: ApiClient = fakeClient()) {
   return router;
 }
 
-/** The fake client with an assessment whose totals agree with its five findings. */
-function fiveClient(overrides: Partial<ApiClient> = {}): ApiClient {
-  return fakeClient({ getAssessment: async (id) => (id === "a-juice" ? juiceFive : Promise.reject(new ApiError(404, "assessment not found"))), ...overrides });
+/** The fake client with an assessment whose totals agree with its six findings. */
+function sixClient(overrides: Partial<ApiClient> = {}): ApiClient {
+  return fakeClient({ getAssessment: async (id) => (id === "a-juice" ? juiceSix : Promise.reject(new ApiError(404, "assessment not found"))), ...overrides });
 }
 
 describe("/ (assessments)", () => {
@@ -114,12 +114,12 @@ describe("/a/:id (overview)", () => {
 
 describe("/a/:id/findings (the table)", () => {
   it("leads with what is shown and lists every finding, most severe first, with a link to each", async () => {
-    mount("/a/a-juice/findings", fiveClient());
+    mount("/a/a-juice/findings", sixClient());
     expect(await screen.findByRole("heading", { level: 1, name: "Findings" })).toBeInTheDocument();
-    expect(screen.getByText("5 findings: 2 critical, 1 high, 1 medium; none has reached validation.")).toBeInTheDocument();
+    expect(screen.getByText("6 findings: 2 critical, 1 high, 2 medium; 1 verified.")).toBeInTheDocument();
     const table = screen.getByRole("table", { name: "Findings" });
     const rows = within(table).getAllByRole("row").filter((r) => r.querySelector("td.id"));
-    expect(rows).toHaveLength(5);
+    expect(rows).toHaveLength(6);
     expect(within(rows[0]!).getByRole("link", { name: /CVE-2015-9235/ })).toHaveAttribute("href", "/a/a-juice/findings/f-jwt");
     expect(within(rows[0]!).getByText("Critical")).toBeInTheDocument();
     expect(within(rows[0]!).getByText("jsonwebtoken@0.4.0")).toBeInTheDocument();
@@ -133,48 +133,48 @@ describe("/a/:id/findings (the table)", () => {
   });
 
   it("filters from the URL and writes the filters back to it", async () => {
-    const router = mount("/a/a-juice/findings?severity=critical", fiveClient());
-    expect(await screen.findByText("2 of 5 findings match: 2 critical; none has reached validation.")).toBeInTheDocument();
+    const router = mount("/a/a-juice/findings?severity=critical", sixClient());
+    expect(await screen.findByText("2 of 6 findings match: 2 critical; none has reached validation.")).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Severity" })).toHaveValue("critical");
     await userEvent.selectOptions(screen.getByRole("combobox", { name: "Tool" }), "prowler");
-    expect(await screen.findByText("1 of 5 findings match: 1 critical; none has reached validation.")).toBeInTheDocument();
+    expect(await screen.findByText("1 of 6 findings match: 1 critical; none has reached validation.")).toBeInTheDocument();
     expect(router.state.location.search).toEqual({ severity: "critical", tool: "prowler" });
     await userEvent.click(screen.getByRole("button", { name: "Clear" }));
-    expect(await screen.findByText("5 findings: 2 critical, 1 high, 1 medium; none has reached validation.")).toBeInTheDocument();
+    expect(await screen.findByText("6 findings: 2 critical, 1 high, 2 medium; 1 verified.")).toBeInTheDocument();
     expect(router.state.location.search).toEqual({});
   });
 
   it("searches the title and the scope", async () => {
-    mount("/a/a-juice/findings", fiveClient());
+    mount("/a/a-juice/findings", sixClient());
     const box = await screen.findByRole("searchbox", { name: "Search" });
     await userEvent.type(box, "login.ts{enter}");
-    expect(await screen.findByText("1 of 5 findings match: 1 high; none has reached validation.")).toBeInTheDocument();
+    expect(await screen.findByText("1 of 6 findings match: 1 high; none has reached validation.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /express-sequelize-injection/ })).toBeInTheDocument();
   });
 
   it("offers the assets and the OWASP categories of this assessment as filters", async () => {
-    mount("/a/a-juice/findings", fiveClient());
+    mount("/a/a-juice/findings", sixClient());
     const asset = await screen.findByRole("combobox", { name: "Asset" });
     expect(within(asset).getAllByRole("option").map((o) => o.textContent)).toEqual(["Any asset", "127.0.0.1", "http://127.0.0.1:3000", "juice-shop", "bkimminich/juice-shop:v17.1.1", "123456789012"]);
     await userEvent.selectOptions(asset, "asset-repo-juice-shop");
-    expect(await screen.findByText("1 of 5 findings match: 1 high; none has reached validation.")).toBeInTheDocument();
+    expect(await screen.findByText("1 of 6 findings match: 1 high; none has reached validation.")).toBeInTheDocument();
     const owasp = screen.getByRole("combobox", { name: "OWASP Top 10" });
     expect(within(owasp).getAllByRole("option")).toHaveLength(11);
     expect(within(owasp).getByRole("option", { name: "A03 Injection" })).toBeInTheDocument();
   });
 
   it("keeps the frame and says so when nothing matches, and when nothing was imported", async () => {
-    mount("/a/a-juice/findings?q=nothing-like-this", fiveClient());
-    expect(await screen.findByText("0 of 5 findings match.")).toBeInTheDocument();
+    mount("/a/a-juice/findings?q=nothing-like-this", sixClient());
+    expect(await screen.findByText("0 of 6 findings match.")).toBeInTheDocument();
     expect(screen.getByText("No findings match these filters.")).toBeInTheDocument();
     cleanup();
-    mount("/a/a-juice/findings", fakeClient({ getAssessment: async () => ({ ...juiceFive, totals: { ...juiceFive.totals, findings: 0, bySeverity: { critical: 0, high: 0, medium: 0, low: 0, info: 0 } } }), listFindings: async () => ({ items: [], total: 0, limit: 500, offset: 0 }) }));
+    mount("/a/a-juice/findings", fakeClient({ getAssessment: async () => ({ ...juiceSix, totals: { ...juiceSix.totals, findings: 0, bySeverity: { critical: 0, high: 0, medium: 0, low: 0, info: 0 } } }), listFindings: async () => ({ items: [], total: 0, limit: 500, offset: 0 }) }));
     expect(await screen.findByText("No findings yet: nothing has been imported.")).toBeInTheDocument();
   });
 
   it("renders only the rows in view when there are hundreds", async () => {
     const items = manyFindings(600);
-    mount("/a/a-juice/findings", fakeClient({ getAssessment: async () => ({ ...juiceFive, totals: { ...juiceFive.totals, findings: 600 } }), listFindings: async () => ({ items: items.slice(0, 500), total: 600, limit: 500, offset: 0 }) }));
+    mount("/a/a-juice/findings", fakeClient({ getAssessment: async () => ({ ...juiceSix, totals: { ...juiceSix.totals, findings: 600 } }), listFindings: async () => ({ items: items.slice(0, 500), total: 600, limit: 500, offset: 0 }) }));
     expect(await screen.findByText("The first 500 of 600 findings; narrow them with the filters.")).toBeInTheDocument();
     const table = screen.getByRole("table", { name: "Findings" });
     const rows = within(table).getAllByRole("row").filter((r) => r.querySelector("td.id"));
@@ -187,7 +187,7 @@ describe("/a/:id/findings (the table)", () => {
     const base = fakeClient();
     mount(
       "/a/a-juice/findings",
-      fiveClient({
+      sixClient({
         listFindings: async (id, f) => {
           if (!up) throw new Error("connection refused");
           return base.listFindings(id, f);
@@ -302,5 +302,131 @@ describe("/a/:id/findings/:fid (one finding)", () => {
   it("says when the finding is not there", async () => {
     mount("/a/a-juice/findings/f-nope");
     expect(await screen.findByText("This finding is not here, or it is not yours.")).toBeInTheDocument();
+  });
+
+  it("shows where the finding stands and refuses the next phase in words until a person adds evidence", async () => {
+    const client = fakeClient();
+    mount("/a/a-juice/findings/f-login", client);
+    const trail = await screen.findByRole("list", { name: "The six phases" });
+    const cells = within(trail).getAllByRole("listitem");
+    expect(cells.map((c) => c.getAttribute("aria-current"))).toEqual([null, null, "step", null, null, null]);
+    const next = screen.getByRole("button", { name: "Move to validation" });
+    expect(next).toBeDisabled();
+    expect(screen.getByText(/validation needs evidence captured by a person/)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Add evidence" }));
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Kind" }), "command-output");
+    await userEvent.type(screen.getByRole("textbox", { name: "Title" }), "sqlmap on the login form");
+    await userEvent.type(screen.getByRole("textbox", { name: "Content" }), "$ sqlmap -u http://127.0.0.1:3000/rest/user/login --data 'email=a&password=b' --batch{enter}Parameter: email (POST) is vulnerable");
+    await userEvent.click(screen.getByRole("checkbox", { name: /secrets removed/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Save the evidence" }));
+    expect(await screen.findByRole("heading", { level: 3, name: "sqlmap on the login form" })).toBeInTheDocument();
+
+    const enabled = await screen.findByRole("button", { name: "Move to validation" });
+    expect(enabled).toBeEnabled();
+    await userEvent.type(screen.getByRole("textbox", { name: "Why" }), "Confirmed with a boolean-based payload; no rows were changed.");
+    await userEvent.click(enabled);
+    expect(await screen.findByText(/Being validated\.$/)).toBeInTheDocument();
+    expect(within(screen.getByRole("list", { name: "The six phases" })).getAllByRole("listitem").map((c) => c.getAttribute("aria-current"))).toEqual([null, null, null, "step", null, null]);
+    const history = screen.getByRole("region", { name: "History" });
+    expect(within(history).getByText(/moved it from vulnerability assessment to validation \/ exploitation/)).toBeInTheDocument();
+    expect(within(history).getByText("Confirmed with a boolean-based payload; no rows were changed.")).toBeInTheDocument();
+    expect((await client.getFinding("f-login")).phase).toBe("validation");
+  });
+
+  it("marks a false positive with a reason, and the finding says so", async () => {
+    mount("/a/a-juice/findings/f-http");
+    await screen.findByRole("heading", { level: 1 });
+    await userEvent.click(screen.getByRole("button", { name: "Mark as a false positive" }));
+    const confirm = screen.getByRole("button", { name: "Confirm the false positive" });
+    await userEvent.click(confirm);
+    expect(await screen.findByText(/needs a reason/)).toBeInTheDocument();
+    await userEvent.type(screen.getByRole("textbox", { name: "Why" }), "The port is the lab's own ZAP proxy, not a service of the target.");
+    await userEvent.click(confirm);
+    expect(await screen.findByText(/Marked a false positive: The port is the lab's own ZAP proxy/)).toBeInTheDocument();
+    expect(screen.getByText("false positive", { selector: ".pill" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Move to assessment" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reopen" })).toBeInTheDocument();
+  });
+
+  it("records a retest in remediation, and a fixed one closes the finding", async () => {
+    const client = fakeClient();
+    mount("/a/a-juice/findings/f-csp", client);
+    const list = await screen.findByRole("list", { name: "The seven fields" });
+    expect(within(list).getAllByRole("definition")[6]).toHaveTextContent("not fixed");
+    expect(within(list).getAllByRole("definition")[6]).toHaveTextContent("No Content-Security-Policy header on GET / after the deploy.");
+    const form = screen.getByRole("form", { name: "Record the retest" });
+    await userEvent.click(within(form).getByRole("radio", { name: "Fixed" }));
+    await userEvent.type(within(form).getByRole("textbox", { name: "What the checks showed" }), "GET / now carries Content-Security-Policy: default-src 'self'; the three paths agree.");
+    await userEvent.click(within(form).getByRole("button", { name: "Record the retest" }));
+    expect(await screen.findByText("closed", { selector: ".pill" })).toBeInTheDocument();
+    expect(screen.getByText(/Closed: the retest found it fixed\.$/)).toBeInTheDocument();
+    expect(within(screen.getByRole("list", { name: "The seven fields" })).getAllByRole("definition")[6]).toHaveTextContent("fixed");
+    expect(screen.queryByRole("form", { name: "Record the retest" })).not.toBeInTheDocument();
+    expect((await client.getFinding("f-csp")).status).toBe("closed");
+  });
+
+  it("writes the impact and the fix in place", async () => {
+    const client = fakeClient();
+    mount("/a/a-juice/findings/f-cors", client);
+    const list = await screen.findByRole("list", { name: "The seven fields" });
+    await userEvent.click(within(list).getByRole("button", { name: "Write the impact" }));
+    await userEvent.type(within(list).getByRole("textbox", { name: "Impact" }), "Any website can read the three endpoints' responses; the data is public anyway.");
+    await userEvent.click(within(list).getByRole("button", { name: "Save the impact" }));
+    expect(await within(list).findByText("Any website can read the three endpoints' responses; the data is public anyway.")).toBeInTheDocument();
+    expect(within(list).getAllByRole("definition")[2]).not.toHaveTextContent("Not written yet");
+    expect((await client.getFinding("f-cors")).impact).toBe("Any website can read the three endpoints' responses; the data is public anyway.");
+    expect(within(list).getByRole("button", { name: "Edit the fix" })).toBeInTheDocument();
+  });
+
+  it("marks a piece redacted only once no line carries a credential", async () => {
+    mount("/a/a-juice/findings/f-cors");
+    const section = await screen.findByRole("region", { name: "Evidence" });
+    const [capture, zap] = within(section).getAllByRole("article");
+    const blocked = within(capture!).getByRole("button", { name: "Mark as redacted" });
+    expect(blocked).toBeDisabled();
+    expect(within(capture!).getByText(/Remove the flagged line first/)).toBeInTheDocument();
+    expect(within(zap!).getByText("Redacted")).toBeInTheDocument();
+    await userEvent.click(within(zap!).getByRole("button", { name: "Mark as not redacted" }));
+    expect(await within(zap!).findByText("Not redacted")).toBeInTheDocument();
+    await userEvent.click(within(capture!).getByRole("button", { name: "Edit the text" }));
+    const box = within(capture!).getByRole("textbox", { name: "Evidence text" });
+    await userEvent.clear(box);
+    await userEvent.type(box, "GET /rest/products/search?q= HTTP/1.1{enter}Origin: https://example.com{enter}{enter}HTTP/1.1 200 OK{enter}Access-Control-Allow-Origin: *");
+    await userEvent.click(within(capture!).getByRole("button", { name: "Save the text" }));
+    const unblocked = await within(capture!).findByRole("button", { name: "Mark as redacted" });
+    expect(unblocked).toBeEnabled();
+    await userEvent.click(unblocked);
+    expect(await within(capture!).findByText("Redacted")).toBeInTheDocument();
+  });
+});
+
+describe("/a/:id/audit (history)", () => {
+  it("lists every entry newest first, naming the finding it concerns", async () => {
+    mount("/a/a-juice/audit");
+    expect(await screen.findByRole("heading", { level: 1, name: "History" })).toBeInTheDocument();
+    expect(screen.getByText("7 entries: 1 import, 4 phase changes, 1 status change, 1 retest; newest first.")).toBeInTheDocument();
+    const rows = within(screen.getByRole("table", { name: "History" })).getAllByRole("row").slice(1);
+    expect(rows).toHaveLength(7);
+    expect(within(rows[0]!).getByRole("link", { name: "HTTP Missing Security Headers: content-security-policy" })).toHaveAttribute("href", "/a/a-juice/findings/f-csp");
+    expect(rows[0]).toHaveTextContent("retested it: not fixed");
+    expect(rows[0]).toHaveTextContent("No Content-Security-Policy header on GET / after the deploy.");
+    expect(rows[6]).toHaveTextContent("set the assessment active");
+    expect(rows[6]).toHaveTextContent("The lab is mine to scan.");
+    expect(within(rows[4]!).getByText(/imported nmap\/juice-shop.xml with nmap: 4 parsed, 4 created, 0 merged/)).toBeInTheDocument();
+  });
+
+  it("is reached from the overview, which shows the last few entries", async () => {
+    mount("/a/a-juice");
+    const history = await screen.findByRole("region", { name: "History" });
+    expect(within(history).getAllByRole("listitem")).toHaveLength(5);
+    await userEvent.click(within(history).getByRole("link", { name: "All 7 entries" }));
+    expect(await screen.findByRole("heading", { level: 1, name: "History" })).toBeInTheDocument();
+  });
+
+  it("keeps the frame when nothing has happened", async () => {
+    mount("/a/a-juice/audit", fakeClient({ listAudit: async () => [] }));
+    expect(await screen.findByText("Nothing has happened yet.")).toBeInTheDocument();
+    expect(screen.getByText("Nothing has happened to this assessment yet: no import, no change of phase.")).toBeInTheDocument();
   });
 });

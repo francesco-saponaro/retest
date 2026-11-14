@@ -2,13 +2,13 @@ import { useQuery, useSuspenseQuery, type UseQueryResult } from "@tanstack/react
 import { Link, useRouter, type ErrorComponentProps } from "@tanstack/react-router";
 import type { Asset, AssetKind } from "@retest/schema";
 import type { ReactNode } from "react";
-import type { AssessmentDetail, ImportOut, Totals } from "../api/client.js";
+import type { AssessmentDetail, AuditLine, ImportOut, Totals } from "../api/client.js";
 import { PhaseBoard } from "../components/PhaseBoard.js";
 import { SeverityTray } from "../components/SeverityTray.js";
 import { StatusPill } from "../components/StatusPill.js";
-import { count, findingLine, isoDate, messageOf, phaseLine, relativeTime, scopeLine } from "../lib/format.js";
+import { auditSentence, count, findingLine, isoDate, messageOf, phaseLine, relativeTime, scopeLine } from "../lib/format.js";
 import { coveredByScope } from "@retest/api/services/scope.js";
-import { assessmentQuery, assetsQuery, importsQuery } from "../queries.js";
+import { assessmentQuery, assetsQuery, auditQuery, findingsQuery, importsQuery } from "../queries.js";
 import { assessmentRoute } from "../router.js";
 
 /**
@@ -21,6 +21,9 @@ export function Overview() {
   const { data: a } = useSuspenseQuery(assessmentQuery(client, id));
   const assets = useQuery(assetsQuery(client, id));
   const imports = useQuery(importsQuery(client, id));
+  const history = useQuery(auditQuery(client, id));
+  const findings = useQuery({ ...findingsQuery(client, id, {}), enabled: (history.data?.some((l) => l.findingId) ?? false) });
+  const titles = new Map((findings.data?.items ?? []).map((f) => [f.id, f.title]));
 
   return (
     <>
@@ -92,7 +95,52 @@ export function Overview() {
         </Block>
       </section>
 
+      <section className="section" aria-labelledby="history-heading">
+        <header>
+          <h2 id="history-heading">History</h2>
+          {history.data && history.data.length > RECENT ? (
+            <Link to="/a/$id/audit" params={{ id }} className="crumb">
+              All {count(history.data.length, "entry")}
+            </Link>
+          ) : (
+            <span className="note">{history.data ? (history.data.length ? "everything so far, newest first" : "") : ""}</span>
+          )}
+        </header>
+        <Block query={history} what="the history" rows={3}>
+          {(lines) => <RecentHistory id={id} lines={lines} titles={titles} />}
+        </Block>
+      </section>
     </>
+  );
+}
+
+const RECENT = 5;
+
+/** The last few things that happened, newest first, each finding named by its title once the list has loaded. */
+function RecentHistory({ id, lines, titles }: { id: string; lines: AuditLine[]; titles: Map<string, string> }) {
+  if (lines.length === 0) return <p className="empty">Nothing has happened yet: the first import will be the first entry.</p>;
+  return (
+    <ol className="history" aria-label="Recent history">
+      {[...lines].reverse().slice(0, RECENT).map((l) => (
+        <li key={l.id}>
+          <span className="when muted">{relativeTime(l.at)}</span>
+          <span className="what">
+            <span className="font-medium">{l.actor}</span>{" "}
+            {l.findingId ? (
+              <>
+                <Link to="/a/$id/findings/$fid" params={{ id, fid: l.findingId }} className="crumb">
+                  {titles.get(l.findingId) ?? l.findingId}
+                </Link>
+                : {auditSentence(l)}
+              </>
+            ) : (
+              auditSentence(l)
+            )}
+            {l.reason ? <span className="block muted">{l.reason}</span> : null}
+          </span>
+        </li>
+      ))}
+    </ol>
   );
 }
 

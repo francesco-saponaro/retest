@@ -826,6 +826,186 @@
     gap: 12px;
   }
 
+  /* ---------- the workflow: the six phases as a trail, the next move, the forms that ask why ---------- */
+  .track {
+    display: grid;
+  }
+  .trail {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    border-bottom: 1px solid var(--border);
+  }
+  .trail .step {
+    position: relative;
+    padding: 14px var(--card-pad) 16px;
+    min-width: 0;
+    color: var(--muted);
+  }
+  .trail .step + .step {
+    border-left: 1px solid var(--border);
+  }
+  .trail .step .label {
+    display: block;
+    font-weight: 500;
+    line-height: 20px;
+  }
+  .trail .step .what {
+    display: block;
+    font-size: 13px;
+    line-height: 18px;
+    margin-top: 4px;
+  }
+  .trail .step.done .label {
+    color: var(--text);
+  }
+  .trail .step[aria-current="step"] {
+    color: var(--text);
+  }
+  .trail .step[aria-current="step"]::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    height: 2px;
+    background: var(--hue);
+  }
+  .moves {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px 24px;
+    padding: 16px var(--card-pad);
+  }
+  .move-next {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 12px;
+    flex: 1 1 520px;
+    min-width: 0;
+  }
+  .move-next .field.grow {
+    flex: 1 1 280px;
+  }
+  .move-next .input {
+    height: var(--control-height);
+  }
+  .move-next .wide,
+  .moves .wide {
+    flex-basis: 100%;
+    margin: 0;
+  }
+  .move-set {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+  }
+  .move-form {
+    display: grid;
+    gap: 14px;
+    padding: 16px var(--card-pad) var(--card-pad);
+    border-top: 1px solid var(--rule);
+  }
+  .move-form h3 {
+    font-weight: 500;
+  }
+  .move-form .select {
+    max-width: 320px;
+  }
+  .move-form .metric {
+    padding: 0;
+  }
+  .move-form .choice {
+    border-color: var(--control);
+  }
+  .move-form .choice.on {
+    border-color: transparent;
+  }
+  .move-form .area {
+    max-width: 720px;
+  }
+  .move-set .btn.text:first-child {
+    margin-left: -6px;
+  }
+  .add-evidence {
+    flex: none;
+    white-space: nowrap;
+  }
+  .history-table th:nth-child(3) {
+    width: 46%;
+  }
+  .history-table th:nth-child(4) {
+    width: 32%;
+  }
+  .two-fields {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 16px;
+  }
+  .two-fields .field.grow {
+    flex: 1 1 320px;
+  }
+  .input.area {
+    height: auto;
+    padding: 10px 12px;
+    line-height: 20px;
+    resize: vertical;
+    font: inherit;
+  }
+  .input.mono {
+    font: 12px / 18px ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  .check {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+  }
+  .check input {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--accent);
+  }
+  .fields .write {
+    margin: 6px 0 0 -6px;
+    height: 28px;
+    color: var(--muted);
+  }
+  .fields .write:hover {
+    color: var(--text);
+  }
+  .piece-foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    padding: 0 var(--card-pad) 14px;
+  }
+  .piece-foot .muted {
+    font-size: 13px;
+    line-height: 18px;
+  }
+
+  /* ---------- history: when on the left, what happened and why on the right ---------- */
+  .history li {
+    display: grid;
+    grid-template-columns: 136px minmax(0, 1fr);
+    gap: 0 16px;
+    padding: 12px var(--card-pad);
+  }
+  .history li + li {
+    border-top: 1px solid var(--rule);
+  }
+  .history .when {
+    white-space: nowrap;
+  }
+  .history .what {
+    overflow-wrap: anywhere;
+  }
+
   /* ---------- label and value pairs in a list ---------- */
   .pairs li {
     display: grid;
@@ -869,6 +1049,15 @@
     }
     .two {
       grid-template-columns: minmax(0, 1fr);
+    }
+    .trail {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .trail .step:nth-child(4) {
+      border-left: 0;
+    }
+    .trail .step:nth-child(n + 4) {
+      border-top: 1px solid var(--border);
     }
   }
   @media (max-width: 1100px) {
@@ -1025,9 +1214,50 @@
       flex: 1 1 40%;
     }
     .fields li,
-    .pairs li {
+    .pairs li,
+    .history li {
       grid-template-columns: minmax(0, 1fr);
       gap: 4px;
+    }
+    .trail {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .trail .step {
+      padding: 12px 16px 14px;
+    }
+    .trail .step + .step {
+      border-left: 0;
+    }
+    .trail .step:nth-child(2n) {
+      border-left: 1px solid var(--border);
+    }
+    .trail .step:nth-child(n + 3) {
+      border-top: 1px solid var(--border);
+    }
+    .trail .step .what {
+      display: none;
+    }
+    .trail .step[aria-current="step"] .what {
+      display: block;
+    }
+    .moves,
+    .move-form,
+    .piece-foot {
+      padding-left: 16px;
+      padding-right: 16px;
+    }
+    .move-next .btn,
+    .move-form .select {
+      width: 100%;
+      max-width: none;
+    }
+    .move-set {
+      gap: 4px 16px;
+    }
+    .move-set .btn.text,
+    .move-set .btn.text:first-child {
+      padding: 0;
+      margin: 0;
     }
     .capture {
       grid-template-columns: minmax(0, 1fr);

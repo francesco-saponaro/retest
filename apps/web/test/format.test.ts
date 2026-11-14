@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { PHASES } from "@retest/schema";
-import { count, findingLine, findingState, findingsLine, headline, phaseLine, relativeDay, relativeTime, scopeLine, shortPhase, verifiedCount } from "../src/lib/format.js";
+import { auditSentence, count, findingLine, findingState, findingsLine, headline, historyLine, nextStep, phaseLine, relativeDay, relativeTime, scopeLine, shortPhase, verifiedCount } from "../src/lib/format.js";
 import { totalsOf } from "./fake.js";
 import { cors, detailOf, juiceFindings, jwt, login, manyFindings, summaryOf } from "./findings.js";
 
@@ -81,8 +81,8 @@ describe("shortPhase", () => {
 describe("findingsLine", () => {
   const all = juiceFindings.map(summaryOf);
   it("counts what is shown, by severity, and whether any has been validated", () => {
-    expect(findingsLine({ all: 5, matched: 5, items: all, filtered: false })).toBe("5 findings: 2 critical, 1 high, 1 medium; none has reached validation.");
-    expect(findingsLine({ all: 5, matched: 2, items: all.filter((f) => f.risk.severity === "critical"), filtered: true })).toBe("2 of 5 findings match: 2 critical; none has reached validation.");
+    expect(findingsLine({ all: 6, matched: 6, items: all, filtered: false })).toBe("6 findings: 2 critical, 1 high, 2 medium; 1 verified.");
+    expect(findingsLine({ all: 6, matched: 2, items: all.filter((f) => f.risk.severity === "critical"), filtered: true })).toBe("2 of 6 findings match: 2 critical; none has reached validation.");
   });
   it("says so when nothing is there, and why", () => {
     expect(findingsLine({ all: 0, matched: 0, items: [], filtered: false })).toBe("No findings yet: nothing has been imported.");
@@ -90,7 +90,7 @@ describe("findingsLine", () => {
   });
   it("counts the verified ones and says when the page is cut", () => {
     const verified = all.map((f, i) => ({ ...f, phase: i < 2 ? ("validation" as const) : f.phase }));
-    expect(findingsLine({ all: 5, matched: 5, items: verified, filtered: false })).toBe("5 findings: 2 critical, 1 high, 1 medium; 2 verified.");
+    expect(findingsLine({ all: 6, matched: 6, items: verified, filtered: false })).toBe("6 findings: 2 critical, 1 high, 2 medium; 3 verified.");
     expect(findingsLine({ all: 900, matched: 900, items: manyFindings(500), filtered: false })).toBe("The first 500 of 900 findings; narrow them with the filters.");
   });
 });
@@ -103,6 +103,7 @@ describe("findingState", () => {
     expect(findingState(detailOf({ ...login, phase: "validation" }), now)).toMatch(/Being validated\.$/);
     expect(findingState(detailOf({ ...login, phase: "remediation" }), now)).toMatch(/Validated; waiting on the fix and the retest\.$/);
     expect(findingState(detailOf({ ...login, status: "false-positive", falsePositiveReason: "test code" }), now)).toMatch(/Marked a false positive: test code\.$/);
+    expect(findingState(detailOf({ ...login, status: "false-positive", falsePositiveReason: "Test code." }), now)).toMatch(/Marked a false positive: Test code\.$/);
   });
 });
 
@@ -115,3 +116,44 @@ describe("headline", () => {
   });
 });
 
+describe("auditSentence", () => {
+  const base = { id: 1, assessmentId: "a-1", actor: "francesco", at: "2026-11-14T18:00:00.000Z", reason: null, findingId: null };
+  it("says what happened, in words, for each kind of line", () => {
+    expect(auditSentence({ ...base, action: "import", field: "nmap", from: "nmap/juice-shop.xml", to: "4 parsed, 4 created, 0 merged" })).toBe("imported nmap/juice-shop.xml with nmap: 4 parsed, 4 created, 0 merged");
+    expect(auditSentence({ ...base, action: "import", field: "zap", from: null, to: "6 parsed, 3 created, 3 merged" })).toBe("imported a zap file: 6 parsed, 3 created, 3 merged");
+    expect(auditSentence({ ...base, action: "phase", field: "phase", from: "scope", to: "assessment" })).toBe("moved the assessment from scope and asset inventory to vulnerability assessment");
+    expect(auditSentence({ ...base, action: "status", field: "status", from: "draft", to: "active" })).toBe("set the assessment active");
+    expect(auditSentence({ ...base, findingId: "f-1", action: "phase", field: "phase", from: "assessment", to: "validation" })).toBe("moved it from vulnerability assessment to validation / exploitation");
+    expect(auditSentence({ ...base, findingId: "f-1", action: "status", field: "status", from: "open", to: "false-positive" })).toBe("marked it a false positive");
+    expect(auditSentence({ ...base, findingId: "f-1", action: "status", field: "status", from: "risk", to: "accepted-risk" })).toBe("accepted the risk");
+    expect(auditSentence({ ...base, findingId: "f-1", action: "status", field: "status", from: "open", to: "closed" })).toBe("closed it");
+    expect(auditSentence({ ...base, findingId: "f-1", action: "status", field: "status", from: "false-positive", to: "open" })).toBe("reopened it");
+    expect(auditSentence({ ...base, findingId: "f-1", action: "retest", field: "retest", from: null, to: "not-fixed" })).toBe("retested it: not fixed");
+    expect(auditSentence({ ...base, findingId: "f-1", action: "retest", field: "retest", from: "not-fixed", to: "fixed" })).toBe("retested it: fixed");
+  });
+});
+
+describe("historyLine", () => {
+  const base = { id: 1, assessmentId: "a-1", actor: "francesco", at: "2026-11-14T18:00:00.000Z", reason: null, findingId: null, field: "x", from: null, to: null };
+  it("counts the entries by kind, newest first", () => {
+    expect(historyLine([])).toBe("Nothing has happened yet.");
+    expect(historyLine([{ ...base, action: "import" }])).toBe("1 entry: 1 import.");
+    expect(
+      historyLine([
+        { ...base, action: "import" },
+        { ...base, action: "import" },
+        { ...base, action: "phase" },
+        { ...base, action: "status" },
+        { ...base, action: "retest" },
+      ]),
+    ).toBe("5 entries: 2 imports, 1 phase change, 1 status change, 1 retest; newest first.");
+  });
+});
+
+describe("nextPhase and the step that follows", () => {
+  it("names the move a finding can make next, or none at the end", () => {
+    expect(nextStep("assessment")).toEqual({ phase: "validation", label: "Move to validation" });
+    expect(nextStep("risk")).toEqual({ phase: "remediation", label: "Move to remediation and retest" });
+    expect(nextStep("remediation")).toBeNull();
+  });
+});

@@ -103,4 +103,36 @@ describe("httpClient", () => {
     const client = httpClient({ baseUrl: "/api", token: () => "tok", fetch: fakeFetch(400, { error: "invalid body", issues: [{ path: "risk.severity", message: "severity does not match the CVSS score" }] }) });
     await expect(client.updateFinding("f-1", { risk: { severity: "low" } })).rejects.toMatchObject({ status: 400, message: "invalid body: risk.severity severity does not match the CVSS score" });
   });
+
+  it("posts a phase change, a status change and a retest to the finding's own routes", async () => {
+    const fetch = fakeFetch(200, { id: "f-1", phase: "validation" });
+    const client = httpClient({ baseUrl: "/api", token: () => "tok", fetch });
+    await client.setFindingPhase("f-1", { phase: "validation", reason: "Reproduced with curl." });
+    await client.setFindingStatus("f-1", { status: "false-positive", reason: "A build number." });
+    await client.recordRetest("f-1", { outcome: "fixed", notes: "Header gone." });
+    expect(fetch.mock.calls.map((c) => [String(c[0]), c[1]?.method, JSON.parse(String(c[1]?.body))])).toEqual([
+      ["/api/findings/f-1/phase", "POST", { phase: "validation", reason: "Reproduced with curl." }],
+      ["/api/findings/f-1/status", "POST", { status: "false-positive", reason: "A build number." }],
+      ["/api/findings/f-1/retest", "POST", { outcome: "fixed", notes: "Header gone." }],
+    ]);
+  });
+
+  it("gives the rule's own sentence when the workflow refuses", async () => {
+    const client = httpClient({ baseUrl: "/api", token: () => "tok", fetch: fakeFetch(409, { error: "validation needs evidence captured by a person: a scanner's output is a claim, not proof" }) });
+    await expect(client.setFindingPhase("f-1", { phase: "validation" })).rejects.toMatchObject({ status: 409, message: "validation needs evidence captured by a person: a scanner's output is a claim, not proof" });
+  });
+
+  it("adds evidence as JSON, patches a piece, and lists a finding's history", async () => {
+    const fetch = fakeFetch(200, { items: [] });
+    const client = httpClient({ baseUrl: "/api", token: () => "tok", fetch });
+    await client.addEvidence("f-1", { kind: "command-output", title: "curl", content: "$ curl -sI …", redacted: true });
+    await client.updateEvidence("ev-1", { redacted: true });
+    expect(await client.listFindingAudit("f-1")).toEqual([]);
+    expect(fetch.mock.calls.map((c) => [String(c[0]), c[1]?.method ?? "GET"])).toEqual([
+      ["/api/findings/f-1/evidence", "POST"],
+      ["/api/evidence/ev-1", "PATCH"],
+      ["/api/findings/f-1/audit", "GET"],
+    ]);
+    expect(JSON.parse(String(fetch.mock.calls[0]![1]?.body))).toEqual({ kind: "command-output", title: "curl", content: "$ curl -sI …", redacted: true });
+  });
 });

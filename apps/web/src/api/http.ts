@@ -28,7 +28,7 @@ export function httpClient(options: HttpClientOptions): ApiClient {
   const doFetch = options.fetch ?? ((input, init) => fetch(input, init));
   const base = options.baseUrl.replace(/\/$/, "");
 
-  async function call<T>(method: "GET" | "PATCH", path: string, payload?: unknown): Promise<T> {
+  async function call<T>(method: "GET" | "POST" | "PATCH", path: string, payload?: unknown): Promise<T> {
     const headers = new Headers({ accept: "application/json" });
     const token = options.token();
     if (token) headers.set("authorization", `Bearer ${token}`);
@@ -68,5 +68,11 @@ export function httpClient(options: HttpClientOptions): ApiClient {
     listFindings: (aid, filter) => get(`/assessments/${id(aid)}/findings${query(filter)}`),
     getFinding: (fid) => get(`/findings/${id(fid)}`),
     updateFinding: (fid, patch) => call("PATCH", `/findings/${id(fid)}`, patch),
+    setFindingPhase: (fid, change) => call("POST", `/findings/${id(fid)}/phase`, change),
+    setFindingStatus: (fid, change) => call("POST", `/findings/${id(fid)}/status`, change),
+    recordRetest: (fid, input) => call("POST", `/findings/${id(fid)}/retest`, input),
+    addEvidence: (fid, input) => call("POST", `/findings/${id(fid)}/evidence`, input),
+    updateEvidence: (eid, patch) => call("PATCH", `/evidence/${id(eid)}`, patch),
+    listFindingAudit: (fid) => items(`/findings/${id(fid)}/audit`),
   };
 }

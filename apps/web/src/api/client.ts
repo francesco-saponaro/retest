@@ -1,4 +1,4 @@
-import type { Asset, Finding, OwaspTop10Id, Phase, Risk, Severity, Tool } from "@retest/schema";
+import type { Asset, Evidence, EvidenceKind, Finding, FindingStatus, OwaspTop10Id, Phase, RetestOutcome, Risk, Severity, Tool } from "@retest/schema";
 import type { AssessmentOut, AuditLine, FindingSummary, ImportOut } from "@retest/api/rows.js";
 import type { Totals } from "@retest/api/services/assessments.js";
 import type { FindingDetail } from "@retest/api/services/findings.js";
@@ -29,9 +29,44 @@ export interface FindingsPage {
   offset: number;
 }
 
-/** What a screen may change on a finding tonight: its risk. The workflow (phase, status, retest) has its own calls. */
+/** What a person writes on a finding: the risk from the calculator, the impact and the fix in words. The workflow (phase, status, retest) has its own calls. */
 export interface FindingPatch {
   risk?: Risk;
+  impact?: string;
+  fix?: string;
+}
+
+/** A move through the phases. The reason is optional forward and required back; the API says so when it is missing. */
+export interface PhaseChange {
+  phase: Phase;
+  reason?: string;
+}
+
+/** Setting a finding aside, or taking it back. "closed" is refused: the retest closes. */
+export interface StatusChange {
+  status: FindingStatus;
+  reason?: string;
+}
+
+/** A retest that happened: its outcome and what the checks showed. `testedAt` is now when left out. */
+export interface RetestInput {
+  outcome: RetestOutcome;
+  notes: string;
+  testedAt?: string;
+}
+
+/** A piece of evidence a person captured. */
+export interface NewEvidence {
+  kind: EvidenceKind;
+  title?: string;
+  content: string;
+  redacted?: boolean;
+}
+
+export interface EvidencePatch {
+  title?: string;
+  content?: string;
+  redacted?: boolean;
 }
 
 /** The API answers at most this many findings per page; the table asks for all of them at once. */
@@ -48,6 +83,12 @@ export interface ApiClient {
   listFindings(id: string, filter: FindingFilter): Promise<FindingsPage>;
   getFinding(fid: string): Promise<FindingDetail>;
   updateFinding(fid: string, patch: FindingPatch): Promise<Finding>;
+  setFindingPhase(fid: string, change: PhaseChange): Promise<Finding>;
+  setFindingStatus(fid: string, change: StatusChange): Promise<Finding>;
+  recordRetest(fid: string, input: RetestInput): Promise<Finding>;
+  addEvidence(fid: string, input: NewEvidence): Promise<Evidence>;
+  updateEvidence(eid: string, patch: EvidencePatch): Promise<Evidence>;
+  listFindingAudit(fid: string): Promise<AuditLine[]>;
 }
 
 /** The API said no. `status` is the HTTP status and `message` the API's own one-line reason. */
@@ -61,4 +102,4 @@ export class ApiError extends Error {
   }
 }
 
-export type { Asset, AuditLine, Finding, FindingDetail, FindingSummary, ImportOut, Totals };
+export type { Asset, AuditLine, Evidence, Finding, FindingDetail, FindingSummary, ImportOut, Totals };
