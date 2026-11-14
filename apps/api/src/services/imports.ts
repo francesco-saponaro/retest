@@ -1,4 +1,4 @@
-import { ToolSchema, type Asset, type Finding } from "@retest/schema";
+import { ToolSchema, isPhaseAfter, type Asset, type Finding } from "@retest/schema";
 import { canParse, classify, dedupe, normalize, parse, type ParseResult } from "@retest/parsers";
 import { desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
@@ -72,7 +72,18 @@ export async function runImport(db: Db, assessment: AssessmentRow, input: Import
   const classified = classify(deduped.findings, { now });
   const merged = deduped.merged.reduce((n, m) => n + m.from.filter((id) => incomingIds.has(id)).length, 0);
   const created = classified.findings.filter((f) => !existingIds.has(f.id));
-  const changed = classified.findings.filter((f) => existingIds.has(f.id) && touched(f, existing));
+  const changed = classified.findings
+    .filter((f) => existingIds.has(f.id))
+    .map((f) => keepDecisions(f, existing.find((e) => e.id === f.id)!))
+    .filter((f) => touched(f, existing));
+  // A tool reporting a piece of evidence a finding already carries adds nothing; what is new is numbered after what is there.
+  const incomingEvidence = changed.flatMap((f) => {
+    const before = existing.find((e) => e.id === f.id)!;
+    let n = nextEvidenceNumber(before);
+    return f.evidence
+      .filter((e) => !before.evidence.some((b) => b.kind === e.kind && b.content === e.content))
+      .map((e) => fromEvidence({ ...e, id: `${f.id}-e${n++}` }, f.id));
+  });
 
   const row: ImportRow = {
     id: newId("imp"),
@@ -92,7 +103,7 @@ export async function runImport(db: Db, assessment: AssessmentRow, input: Import
     if (newAssets.length) await tx.insert(assets).values(newAssets.map(fromAsset));
     if (created.length) await tx.insert(findings).values(created.map(fromFinding));
     for (const f of changed) await tx.update(findings).set(fromFinding(f)).where(eq(findings.id, f.id));
-    const newEvidence = [...created, ...changed].flatMap((f) => f.evidence.filter((e) => !existingEvidenceIds.has(e.id)).map((e) => fromEvidence(e, f.id)));
+    const newEvidence = [...created.flatMap((f) => f.evidence.filter((e) => !existingEvidenceIds.has(e.id)).map((e) => fromEvidence(e, f.id))), ...incomingEvidence];
     if (newEvidence.length) await tx.insert(evidence).values(newEvidence).onConflictDoNothing();
     await tx.insert(imports).values(row);
     await record(tx, {
@@ -112,6 +123,33 @@ export async function runImport(db: Db, assessment: AssessmentRow, input: Import
 function label(asset: Asset): string {
   const where = asset.url ?? asset.host;
   return where && where !== asset.name ? `${asset.name} (${where})` : asset.name;
+}
+
+/**
+ * What a person decided stays decided. Once a finding has been validated (phase 4 or later) or set
+ * aside (any status but open), a re-import may still add the tools' sources, evidence and mappings,
+ * but the person's risk, text, phase, status and retest are theirs: a scanner's second opinion
+ * does not raise a severity a person lowered or reopen a false positive.
+ */
+function keepDecisions(after: Finding, before: Finding): Finding {
+  const decided = before.status !== "open" || isPhaseAfter(before.phase, "assessment");
+  if (!decided) return after;
+  return {
+    ...after,
+    risk: before.risk,
+    impact: before.impact,
+    fix: before.fix,
+    phase: before.phase,
+    status: before.status,
+    ...(before.retest ? { retest: before.retest } : {}),
+    ...(before.falsePositiveReason ? { falsePositiveReason: before.falsePositiveReason } : {}),
+  };
+}
+
+/** `f-…-e4` when the finding's imported evidence runs to `-e3`; evidence a person added (`ev-…`) is not counted. */
+function nextEvidenceNumber(f: Finding): number {
+  const numbers = f.evidence.map((e) => Number(new RegExp(`^${f.id}-e(\\d+)$`).exec(e.id)?.[1] ?? 0));
+  return Math.max(0, ...numbers) + 1;
 }
 
 /** Did dedupe or classify change an existing finding? Compared on what they can touch. */

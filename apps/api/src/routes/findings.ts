@@ -9,16 +9,20 @@ import {
   EvidenceQuerySchema,
   FindingPatchSchema,
   FindingPhaseSchema,
+  FindingStatusChangeSchema,
   FindingsQuerySchema,
   NewEvidenceSchema,
   NewFindingSchema,
+  RetestBodySchema,
   addEvidence,
   createFinding,
   findingDetail,
   listFindings,
+  recordRetest,
   requireEvidence,
   requireFinding,
   setFindingPhase,
+  setFindingStatus,
   updateEvidence,
   updateFinding,
 } from "../services/findings.js";
@@ -58,6 +62,20 @@ export const findingRoutes: FastifyPluginAsync<RouteContext> = async (app, { db,
     const { phase, reason } = validate(FindingPhaseSchema, req.body, "body");
     const { finding } = await requireFinding(db, id, req.principal);
     return setFindingPhase(db, finding, phase, req.principal, reason, now());
+  });
+
+  app.post("/findings/:id/status", async (req) => {
+    const { id } = validate(IdParams, req.params, "params");
+    const { status, reason } = validate(FindingStatusChangeSchema, req.body, "body");
+    const { finding } = await requireFinding(db, id, req.principal);
+    return setFindingStatus(db, finding, status, req.principal, reason, now());
+  });
+
+  app.post("/findings/:id/retest", async (req) => {
+    const { id } = validate(IdParams, req.params, "params");
+    const input = validate(RetestBodySchema, req.body, "body");
+    const { finding } = await requireFinding(db, id, req.principal);
+    return recordRetest(db, finding, input, req.principal, now());
   });
 
   app.get("/findings/:id/audit", async (req) => {

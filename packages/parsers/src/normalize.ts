@@ -1,12 +1,9 @@
-import { AssetSchema, FindingSchema, type Asset, type Evidence, type Finding, type Source } from "@retest/schema";
+import { AssetSchema, FindingSchema, UNASSESSED_IMPACT, UNWRITTEN_FIX, type Asset, type Evidence, type Finding, type Source } from "@retest/schema";
 import type { RawFinding } from "./raw.js";
 import { sha256hex } from "./sha256.js";
 
-/** What goes in the impact field until someone has validated the finding and written the real one. */
-export const UNASSESSED_IMPACT = "Not assessed yet. The scanner reported this; the impact is written after validation.";
-
-/** What goes in the fix field until the finding is validated and a fix is decided. */
-export const UNWRITTEN_FIX = "Not written yet. The fix is decided after validation.";
+// The placeholders live in the schema, where the workflow rules read them; the parsers write them.
+export { UNASSESSED_IMPACT, UNWRITTEN_FIX };
 
 export interface NormalizeOptions {
   assessmentId: string;

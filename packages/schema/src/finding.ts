@@ -22,6 +22,14 @@ export const FINDING_FIELDS = [
 
 export type FindingFieldKey = (typeof FINDING_FIELDS)[number]["key"];
 
+/**
+ * What an import writes where a person has not written yet. A tool knows where a problem might be;
+ * it does not know what can happen or what to change. The text says so, and the workflow refuses to
+ * carry a finding to remediation while either field still holds it.
+ */
+export const UNASSESSED_IMPACT = "Not assessed yet. The scanner reported this; the impact is written after validation.";
+export const UNWRITTEN_FIX = "Not written yet. The fix is decided after validation.";
+
 export const LEVELS = ["low", "medium", "high"] as const;
 export const LevelSchema = z.enum(LEVELS);
 export type Level = z.infer<typeof LevelSchema>;

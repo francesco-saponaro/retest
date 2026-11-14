@@ -106,7 +106,7 @@ export const evidence = pgTable(
   (t) => [index("evidence_finding_idx").on(t.findingId)],
 );
 
-export const AUDIT_ACTIONS = ["phase", "status", "import"] as const;
+export const AUDIT_ACTIONS = ["phase", "status", "retest", "import"] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
 export const auditLog = pgTable(

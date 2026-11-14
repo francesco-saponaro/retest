@@ -6,13 +6,19 @@ import {
   MappingsSchema,
   OwaspTop10IdSchema,
   PhaseSchema,
+  RetestOutcomeSchema,
   RiskSchema,
   SEVERITIES,
   SeveritySchema,
   ToolSchema,
+  phaseChangeProblem,
+  phaseNumber,
+  retestProblem,
+  statusChangeProblem,
   type Asset,
   type Evidence,
   type Finding,
+  type FindingStatus,
   type Phase,
 } from "@retest/schema";
 import { classify } from "@retest/parsers";
@@ -53,6 +59,13 @@ export const FindingPatchSchema = z.strictObject({
 });
 
 export const FindingPhaseSchema = z.strictObject({ phase: PhaseSchema, reason: z.string().min(1).max(2000).optional() });
+export const FindingStatusChangeSchema = z.strictObject({ status: FindingStatusSchema, reason: z.string().min(1).max(2000).optional() });
+/** A retest that happened: its outcome, what the checks showed, and when (now, when not given). */
+export const RetestBodySchema = z.strictObject({
+  outcome: RetestOutcomeSchema,
+  notes: z.string().min(1).max(5000),
+  testedAt: z.iso.datetime({ offset: true }).optional(),
+});
 
 export const NewEvidenceSchema = EvidenceSchema.omit({ id: true, findingId: true }).strict();
 export const EvidenceQuerySchema = z.object({ kind: EvidenceKindSchema.default("note"), title: z.string().min(1).max(200).optional() });
@@ -179,8 +192,17 @@ export async function findingDetail(db: Db, row: FindingRow): Promise<FindingDet
   return { ...toFinding(row, ev), asset: toAsset(asset!) };
 }
 
-/** Apply the patch to the whole finding and run it through the schema again, so every rule still holds. */
+function requireNotClosed(row: FindingRow): void {
+  if (row.status === "closed") throw new HttpError(409, "the finding is closed: the retest found it fixed; reopen it first");
+}
+
+/**
+ * Apply the patch to the whole finding and run it through the schema again, so every rule still
+ * holds. The mappings are filled again from the CWE; the risk is not settled again: a risk is
+ * settled from the tools' claims once, at import, and after that only a person changes it.
+ */
 export async function updateFinding(db: Db, row: FindingRow, patch: z.infer<typeof FindingPatchSchema>, now = new Date()): Promise<Finding> {
+  requireNotClosed(row);
   if (patch.assetId !== undefined && !(await assetIn(db, row.assessmentId, patch.assetId))) {
     throw new HttpError(400, "invalid body", [{ path: "assetId", message: "not an asset of this assessment" }]);
   }
@@ -192,20 +214,69 @@ export async function updateFinding(db: Db, row: FindingRow, patch: z.infer<type
     updatedAt: now.toISOString(),
   });
   if (!parsed.success) invalid("body", parsed.error);
-  const [updated] = classify([parsed.data], { now }).findings as [Finding];
+  const [classified] = classify([parsed.data], { now }).findings as [Finding];
+  const updated: Finding = { ...classified, risk: parsed.data.risk };
   await db.update(findings).set(fromFinding(updated)).where(eq(findings.id, row.id));
   return toFinding((await db.select().from(findings).where(eq(findings.id, row.id)))[0]!, await evidenceOf(db, row.id));
 }
 
+async function reload(db: Db, id: string): Promise<Finding> {
+  const [updated] = await db.select().from(findings).where(eq(findings.id, id));
+  return toFinding(updated!, await evidenceOf(db, id));
+}
+
+/** The finding with its evidence, as the workflow rules read it. */
+async function workflowView(db: Db, row: FindingRow): Promise<Finding> {
+  return toFinding(row, await evidenceOf(db, row.id));
+}
+
+/** Move a finding to a phase under the workflow rules: one phase forward at a time, proof before validation, the text before remediation, a reason to go back. */
 export async function setFindingPhase(db: Db, row: FindingRow, phase: Phase, who: Principal, reason?: string, now = new Date()): Promise<Finding> {
-  if (row.phase !== phase) {
-    await db.transaction(async (tx) => {
-      await tx.update(findings).set({ phase, updatedAt: now }).where(eq(findings.id, row.id));
-      await record(tx, { assessmentId: row.assessmentId, findingId: row.id, actor: who.sub, action: "phase", field: "phase", from: row.phase, to: phase, ...(reason ? { reason } : {}), at: now });
-    });
-  }
-  const [updated] = await db.select().from(findings).where(eq(findings.id, row.id));
-  return toFinding(updated!, await evidenceOf(db, row.id));
+  if (row.phase === phase) return reload(db, row.id);
+  const problem = phaseChangeProblem(await workflowView(db, row), phase, reason);
+  if (problem) throw new HttpError(409, problem);
+  await db.transaction(async (tx) => {
+    await tx.update(findings).set({ phase, updatedAt: now }).where(eq(findings.id, row.id));
+    await record(tx, { assessmentId: row.assessmentId, findingId: row.id, actor: who.sub, action: "phase", field: "phase", from: row.phase, to: phase, ...(reason ? { reason } : {}), at: now });
+  });
+  return reload(db, row.id);
+}
+
+/**
+ * Set a finding aside, or take it back. A false positive is a result of validation, so marking one
+ * carries the finding to that phase when it had not reached it; reopening drops the reason that
+ * no longer holds. "closed" is refused here: the retest closes.
+ */
+export async function setFindingStatus(db: Db, row: FindingRow, status: FindingStatus, who: Principal, reason?: string, now = new Date()): Promise<Finding> {
+  if (row.status === status) return reload(db, row.id);
+  const problem = statusChangeProblem(await workflowView(db, row), status, reason);
+  if (problem) throw new HttpError(409, problem);
+  const phase: Phase = status === "false-positive" && phaseNumber(row.phase) < phaseNumber("validation") ? "validation" : row.phase;
+  const falsePositiveReason = status === "false-positive" ? reason! : null;
+  await db.transaction(async (tx) => {
+    if (phase !== row.phase) {
+      await record(tx, { assessmentId: row.assessmentId, findingId: row.id, actor: who.sub, action: "phase", field: "phase", from: row.phase, to: phase, reason: "Found to be a false positive.", at: now });
+    }
+    await tx.update(findings).set({ status, phase, falsePositiveReason, updatedAt: now }).where(eq(findings.id, row.id));
+    await record(tx, { assessmentId: row.assessmentId, findingId: row.id, actor: who.sub, action: "status", field: "status", from: row.status, to: status, ...(reason ? { reason } : {}), at: now });
+  });
+  return reload(db, row.id);
+}
+
+/** Record what the checks showed after the fix. "fixed" closes the finding; anything else leaves it open in remediation for the next round. */
+export async function recordRetest(db: Db, row: FindingRow, input: z.infer<typeof RetestBodySchema>, who: Principal, now = new Date()): Promise<Finding> {
+  const problem = retestProblem(await workflowView(db, row), input.outcome);
+  if (problem) throw new HttpError(409, problem);
+  const retest = { outcome: input.outcome, testedAt: new Date(input.testedAt ?? now).toISOString(), notes: input.notes };
+  const status: FindingStatus = input.outcome === "fixed" ? "closed" : row.status;
+  await db.transaction(async (tx) => {
+    await tx.update(findings).set({ retest, status, updatedAt: now }).where(eq(findings.id, row.id));
+    await record(tx, { assessmentId: row.assessmentId, findingId: row.id, actor: who.sub, action: "retest", field: "retest", from: row.retest?.outcome ?? null, to: input.outcome, reason: input.notes, at: now });
+    if (status !== row.status) {
+      await record(tx, { assessmentId: row.assessmentId, findingId: row.id, actor: who.sub, action: "status", field: "status", from: row.status, to: status, reason: "The retest found it fixed.", at: now });
+    }
+  });
+  return reload(db, row.id);
 }
 
 export async function addEvidence(db: Db, row: FindingRow, input: z.infer<typeof NewEvidenceSchema>, now = new Date()): Promise<Evidence> {
