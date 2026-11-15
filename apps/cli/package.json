@@ -1,0 +1,26 @@
+{
+  "name": "@retest/cli",
+  "version": "0.1.0",
+  "description": "The Retest command line: create an assessment, import scanner output, print the reports.",
+  "license": "MIT",
+  "type": "module",
+  "private": true,
+  "bin": {
+    "retest": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "start": "node dist/cli.js"
+  },
+  "dependencies": {
+    "@retest/schema": "workspace:*"
+  },
+  "devDependencies": {
+    "@retest/api": "workspace:*",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.12"
+  }
+}
