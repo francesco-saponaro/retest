@@ -29,6 +29,8 @@ import {
   updateFinding,
 } from "@retest/api/services/findings.js";
 import { listImports, runImport } from "@retest/api/services/imports.js";
+import { reportModel } from "@retest/api/services/reports.js";
+import { summaryMarkdown, technicalMarkdown } from "@retest/api/report/markdown.js";
 import { validate } from "@retest/api/http.js";
 import tables from "../../../api/drizzle/0000_tables.sql?raw";
 import { ApiError, PAGE, type ApiClient } from "./client.js";
@@ -120,6 +122,12 @@ export async function demoClient(seededAt = new Date(), now: () => Date = () => 
       call(async () => {
         const { finding } = await requireFinding(db, fid, who);
         return listAudit(db, finding.assessmentId, finding.id);
+      }),
+    getReport: (id) => call(async () => reportModel(db, await requireAssessment(db, id, who), now())),
+    getReportMarkdown: (id, kind) =>
+      call(async () => {
+        const report = await reportModel(db, await requireAssessment(db, id, who), now());
+        return kind === "summary" ? summaryMarkdown(report) : technicalMarkdown(report);
       }),
     close: () => pg.close(),
   };

@@ -2,6 +2,7 @@ import type { Asset, Evidence, EvidenceKind, Finding, FindingStatus, OwaspTop10I
 import type { AssessmentOut, AuditLine, FindingSummary, ImportOut } from "@retest/api/rows.js";
 import type { Totals } from "@retest/api/services/assessments.js";
 import type { FindingDetail } from "@retest/api/services/findings.js";
+import type { Report } from "@retest/api/report/model.js";
 
 /**
  * What the web app asks of the API. There are two implementations with the same contract: `http.ts`
@@ -69,6 +70,9 @@ export interface EvidencePatch {
   redacted?: boolean;
 }
 
+/** The two documents an assessment produces, as markdown files: the technical report and the executive summary. */
+export type ReportKind = "report" | "summary";
+
 /** The API answers at most this many findings per page; the table asks for all of them at once. */
 export const PAGE = 500;
 
@@ -89,6 +93,10 @@ export interface ApiClient {
   addEvidence(fid: string, input: NewEvidence): Promise<Evidence>;
   updateEvidence(eid: string, patch: EvidencePatch): Promise<Evidence>;
   listFindingAudit(fid: string): Promise<AuditLine[]>;
+  /** The report model both documents are rendered from. */
+  getReport(id: string): Promise<Report>;
+  /** One of the two documents as markdown, for download. */
+  getReportMarkdown(id: string, kind: ReportKind): Promise<string>;
 }
 
 /** The API said no. `status` is the HTTP status and `message` the API's own one-line reason. */
@@ -102,4 +110,4 @@ export class ApiError extends Error {
   }
 }
 
-export type { Asset, AuditLine, Evidence, Finding, FindingDetail, FindingSummary, ImportOut, Totals };
+export type { Asset, AuditLine, Evidence, Finding, FindingDetail, FindingSummary, ImportOut, Report, Totals };

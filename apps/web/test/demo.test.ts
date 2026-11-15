@@ -123,6 +123,20 @@ describe("demoClient", () => {
     ]);
   });
 
+  it("writes the report in the browser from the same model as the API, with the lab's two verified findings first", async () => {
+    const r = await client.getReport("a-juice-shop-lab");
+    expect(r.counts).toMatchObject({ findings: 37, verified: 2, falsePositive: 1 });
+    expect(r.coverage.toolsRun).toEqual(["nmap", "nuclei", "zap", "semgrep", "trivy", "prowler"]);
+    expect(r.topRisks[0]).toMatchObject({ id: "f-7f910fa0b432", verified: true });
+    // No tool sets out to test design, but a finding whose CWE belongs to A04 still lands there.
+    expect(r.coverage.owasp.find((x) => x.id === "A04")).toMatchObject({ state: "found", lookedBy: [] });
+    const summary = await client.getReportMarkdown("a-juice-shop-lab", "summary");
+    expect(summary).toMatch(/^# Juice Shop lab[^\n]*: executive summary/);
+    expect(summary).toContain("2 of 37 findings verified by a person");
+    expect(await client.getReportMarkdown("a-juice-shop-lab", "report")).toContain("## Coverage");
+    await expect(client.getReport("nope")).rejects.toMatchObject({ status: 404 });
+  });
+
   it("runs the workflow rules in the browser: the same refusals as the API, in the same words", async () => {
     const { items } = await client.listFindings("a-juice-shop-lab", { q: "Prometheus" });
     const fid = items[0]!.id;

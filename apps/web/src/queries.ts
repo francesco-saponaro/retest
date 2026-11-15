@@ -19,3 +19,5 @@ export const findingsQuery = (client: ApiClient, id: string, filter: FindingFilt
 export const findingQuery = (client: ApiClient, fid: string) => queryOptions({ queryKey: ["findings", fid], queryFn: () => client.getFinding(fid) });
 
 export const findingAuditQuery = (client: ApiClient, fid: string) => queryOptions({ queryKey: ["findings", fid, "audit"], queryFn: () => client.listFindingAudit(fid) });
+
+export const reportQuery = (client: ApiClient, id: string) => queryOptions({ queryKey: ["assessments", id, "report"], queryFn: () => client.getReport(id) });

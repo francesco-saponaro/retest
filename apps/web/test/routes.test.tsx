@@ -430,3 +430,79 @@ describe("/a/:id/audit (history)", () => {
     expect(screen.getByText("Nothing has happened to this assessment yet: no import, no change of phase.")).toBeInTheDocument();
   });
 });
+
+describe("/a/:id/report (the documents)", () => {
+  it("prints the executive summary first and the technical report after, from one report model", async () => {
+    mount("/a/a-juice/report");
+    expect(await screen.findByRole("heading", { level: 1, name: "Report" })).toBeInTheDocument();
+    const paper = await screen.findByRole("article", { name: "Report" });
+    const parts = within(paper).getAllByRole("heading", { level: 2 }).map((h) => h.textContent);
+    expect(parts.slice(1)).toEqual(["Executive summary", "Technical report"]);
+    expect(within(paper).getByRole("table", { name: "Findings by severity" })).toBeInTheDocument();
+    expect(within(paper).getByRole("table", { name: "Trend by day" })).toBeInTheDocument();
+  });
+
+  it("says on every finding whether a person verified it, and holds back evidence that is not redacted", async () => {
+    mount("/a/a-juice/report");
+    const entry = await screen.findByRole("article", { name: /CVE-2015-9235 in jsonwebtoken/ });
+    expect(within(entry).getByText("Not verified: a scanner reported it and nobody has checked it yet.")).toBeInTheDocument();
+    expect(within(entry).getByText("1 piece of evidence not yet redacted, not shown.")).toBeInTheDocument();
+    expect(within(entry).queryByText(/installed: 0\.4\.0/)).toBeNull();
+  });
+
+  it("ends with a coverage matrix that tells 'nobody looked' from 'nothing found'", async () => {
+    mount("/a/a-juice/report");
+    const owasp = await screen.findByRole("table", { name: "OWASP Top 10 2021" });
+    const rows = within(owasp).getAllByRole("row").slice(1);
+    expect(rows).toHaveLength(10);
+    expect(rows[3]).toHaveTextContent("A04 Insecure Design");
+    expect(rows[3]).toHaveTextContent("Not tested");
+    expect(within(screen.getByRole("table", { name: "ASVS 4.0.3 chapters" })).getAllByRole("row")).toHaveLength(15);
+  });
+
+  it("downloads either document as markdown and prints the page for a PDF", async () => {
+    const asked: string[] = [];
+    const client = fakeClient();
+    const original = client.getReportMarkdown;
+    client.getReportMarkdown = async (id, kind) => {
+      asked.push(kind);
+      return original(id, kind);
+    };
+    const created: Blob[] = [];
+    const urls = { create: URL.createObjectURL, revoke: URL.revokeObjectURL };
+    URL.createObjectURL = (b: Blob) => {
+      created.push(b);
+      return "blob:report";
+    };
+    URL.revokeObjectURL = () => undefined;
+    const printed: number[] = [];
+    const print = window.print;
+    window.print = () => void printed.push(1);
+    try {
+      mount("/a/a-juice/report", client);
+      await screen.findByRole("article", { name: "Report" });
+      await userEvent.click(screen.getByRole("button", { name: "Summary .md" }));
+      await userEvent.click(screen.getByRole("button", { name: "Technical report .md" }));
+      await userEvent.click(screen.getByRole("button", { name: "Print or save as PDF" }));
+      expect(asked).toEqual(["summary", "report"]);
+      expect(await created[0]!.text()).toMatch(/^# Juice Shop lab: executive summary/);
+      expect(printed).toEqual([1]);
+    } finally {
+      URL.createObjectURL = urls.create;
+      URL.revokeObjectURL = urls.revoke;
+      window.print = print;
+    }
+  });
+
+  it("is reached from the overview", async () => {
+    mount("/a/a-juice");
+    await userEvent.click(await screen.findByRole("link", { name: "Report" }));
+    expect(await screen.findByRole("heading", { level: 1, name: "Report" })).toBeInTheDocument();
+  });
+
+  it("shows the failure in the sheet's place, with a retry", async () => {
+    mount("/a/a-juice/report", fakeClient({ getReport: async () => Promise.reject(new ApiError(500, "the database is down")) }));
+    expect(await screen.findByText("Couldn't write the report: the database is down.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+  });
+});

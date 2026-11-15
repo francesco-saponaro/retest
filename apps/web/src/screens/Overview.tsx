@@ -38,6 +38,11 @@ export function Overview() {
         <div className="flex items-center gap-3">
           <span className="muted whitespace-nowrap">{a.client ?? ""}</span>
           <StatusPill status={a.status} />
+          {a.totals.findings > 0 ? (
+            <Link to="/a/$id/report" params={{ id }} className="btn">
+              Report
+            </Link>
+          ) : null}
         </div>
       </div>
 

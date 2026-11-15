@@ -2,6 +2,8 @@ import { phaseChangeProblem, retestProblem, statusChangeProblem, type Asset, typ
 import type { AuditLine, FindingSummary, ImportOut } from "@retest/api/rows.js";
 import type { Totals } from "@retest/api/services/assessments.js";
 import { ApiError, type ApiClient, type AssessmentDetail, type AssessmentSummary, type FindingFilter } from "../src/api/client.js";
+import { buildReport } from "@retest/api/report/model.js";
+import { summaryMarkdown, technicalMarkdown } from "@retest/api/report/markdown.js";
 import { detailOf, juiceFindings, summaryOf } from "./findings.js";
 
 /** Totals with every bucket at zero unless given; the finding count is the sum of the phases. */
@@ -113,6 +115,7 @@ export function fakeClient(overrides: Partial<ApiClient> = {}): ApiClient {
   const line = (f: Finding, action: AuditLine["action"], from: string | null, to: string | null, reason?: string) => {
     audit.push({ id: audit.length + 1, assessmentId: f.assessmentId, findingId: f.id, actor: "francesco", action, field: action, from, to, reason: reason ?? null, at: stamp });
   };
+  const report = () => buildReport({ assessment: juice, assets: juiceAssets, findings: [...findings.values()], imports: juiceImports, audit, generatedAt: stamp });
   const refuse = (problem: string | null) => {
     if (problem) throw new ApiError(409, problem);
   };
@@ -191,6 +194,8 @@ export function fakeClient(overrides: Partial<ApiClient> = {}): ApiClient {
       must(fid);
       return audit.filter((l) => l.findingId === fid);
     },
+    getReport: async (id) => (id === "a-juice" ? report() : notFound()),
+    getReportMarkdown: async (id, kind) => (id === "a-juice" ? (kind === "summary" ? summaryMarkdown(report()) : technicalMarkdown(report())) : notFound()),
     ...overrides,
   };
 }

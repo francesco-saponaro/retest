@@ -44,6 +44,16 @@ export function httpClient(options: HttpClientOptions): ApiClient {
   }
 
   const get = <T>(path: string) => call<T>("GET", path);
+
+  /** A document, not JSON: the markdown routes answer text. */
+  async function text(path: string): Promise<string> {
+    const headers = new Headers({ accept: "text/markdown" });
+    const token = options.token();
+    if (token) headers.set("authorization", `Bearer ${token}`);
+    const res = await doFetch(`${base}${path}`, { method: "GET", headers });
+    if (!res.ok) throw new ApiError(res.status, messageOf(await res.json().catch(() => undefined), res.status));
+    return res.text();
+  }
   const items = async <T>(path: string): Promise<T[]> => (await get<{ items: T[] }>(path)).items;
   const id = (s: string) => encodeURIComponent(s);
 
@@ -74,5 +84,7 @@ export function httpClient(options: HttpClientOptions): ApiClient {
     addEvidence: (fid, input) => call("POST", `/findings/${id(fid)}/evidence`, input),
     updateEvidence: (eid, patch) => call("PATCH", `/evidence/${id(eid)}`, patch),
     listFindingAudit: (fid) => items(`/findings/${id(fid)}/audit`),
+    getReport: (aid) => get(`/assessments/${id(aid)}/report`),
+    getReportMarkdown: (aid, kind) => text(`/assessments/${id(aid)}/${kind}.md`),
   };
 }
