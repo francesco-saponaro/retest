@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { demoClient, type DemoClient } from "../src/api/demo.js";
+import { clock, demoClient, type DemoClient } from "../src/api/demo.js";
 
 /**
  * The demo is the API's own services over PostgreSQL in WebAssembly, seeded from the fixtures
@@ -29,8 +29,8 @@ describe("demoClient", () => {
     const [juice] = await client.listAssessments();
     const a = await client.getAssessment(juice!.id);
     expect(a.totals).toMatchObject({ findings: 37, assets: 5, bySeverity: { critical: 4, high: 7, medium: 11, low: 3, info: 12 } });
-    // The imports leave everything in recon or assessment; the three verified ones are the walk-through's, below.
-    expect(a.totals.byPhase.validation + a.totals.byPhase.risk + a.totals.byPhase.remediation).toBe(3);
+    // The imports leave everything in recon or assessment; the four checked ones are the walk-through's, below.
+    expect(a.totals.byPhase.validation + a.totals.byPhase.risk + a.totals.byPhase.remediation).toBe(4);
     expect(await client.listAssets(juice!.id)).toHaveLength(5);
     const imports = await client.listImports(juice!.id);
     // Newest first, as the API lists them; the lab ran the tools in the opposite order.
@@ -99,10 +99,13 @@ describe("demoClient", () => {
     await expect(client.updateFinding(items[0]!.id, { risk: { severity: "low", cvss: risk.cvss } })).rejects.toMatchObject({ status: 400 });
   });
 
-  it("has walked three findings through the workflow, so the lab shows every state of it", async () => {
+  it("has walked four findings through the workflow over four days, so the lab shows every state of it", async () => {
     const a = await client.getAssessment("a-juice-shop-lab");
-    expect(a.totals.byPhase).toMatchObject({ recon: 4, assessment: 30, validation: 1, risk: 1, remediation: 1 });
-    expect(a.totals.byStatus).toMatchObject({ open: 36, "false-positive": 1, "accepted-risk": 0, closed: 0 });
+    expect(a.totals.byPhase).toMatchObject({ recon: 4, assessment: 29, validation: 1, risk: 1, remediation: 2 });
+    expect(a.totals.byStatus).toMatchObject({ open: 35, "false-positive": 1, "accepted-risk": 0, closed: 1 });
+    const mfa = await client.getFinding("f-ab755454eaf7");
+    expect(mfa).toMatchObject({ phase: "remediation", status: "closed", retest: { outcome: "fixed" }, risk: { severity: "critical", likelihood: "medium", impact: "high" } });
+    expect(mfa.evidence.filter((e) => !e.source).map((e) => e.title).sort()).toEqual(["MFA on the root user, after", "MFA on the root user, before"]);
     const cors = await client.getFinding("f-9c67368df231");
     expect(cors.phase).toBe("risk");
     expect(cors.evidence.filter((e) => !e.source)).toHaveLength(1);
@@ -114,7 +117,8 @@ describe("demoClient", () => {
     expect(jwt).toMatchObject({ phase: "remediation", status: "open", retest: { outcome: "not-fixed" } });
     expect(jwt.risk.cvss?.baseScore).toBe(9.8);
     const history = await client.listAudit("a-juice-shop-lab");
-    expect(history).toHaveLength(16);
+    expect(history).toHaveLength(21);
+    expect(new Set(history.map((l) => l.at.slice(0, 10))).size).toBe(4);
     expect((await client.listFindingAudit("f-7f910fa0b432")).map((l) => [l.action, l.to])).toEqual([
       ["phase", "validation"],
       ["phase", "risk"],
@@ -123,16 +127,23 @@ describe("demoClient", () => {
     ]);
   });
 
-  it("writes the report in the browser from the same model as the API, with the lab's two verified findings first", async () => {
+  it("writes the report in the browser from the same model as the API, with the lab's verified findings first", async () => {
     const r = await client.getReport("a-juice-shop-lab");
-    expect(r.counts).toMatchObject({ findings: 37, verified: 2, falsePositive: 1 });
+    expect(r.counts).toMatchObject({ findings: 37, verified: 3, falsePositive: 1, closed: 1 });
+    // Found on day one, a false positive set aside the next, nothing changing status the day after, one closed today.
+    expect(r.trend.map((d) => [d.found, d.closed, d.setAside])).toEqual([
+      [37, 0, 0],
+      [0, 0, 1],
+      [0, 1, 0],
+    ]);
+    expect(r.trend.at(-1)!.open).toBe(35);
     expect(r.coverage.toolsRun).toEqual(["nmap", "nuclei", "zap", "semgrep", "trivy", "prowler"]);
     expect(r.topRisks[0]).toMatchObject({ id: "f-7f910fa0b432", verified: true });
     // No tool sets out to test design, but a finding whose CWE belongs to A04 still lands there.
     expect(r.coverage.owasp.find((x) => x.id === "A04")).toMatchObject({ state: "found", lookedBy: [] });
     const summary = await client.getReportMarkdown("a-juice-shop-lab", "summary");
     expect(summary).toMatch(/^# Juice Shop lab[^\n]*: executive summary/);
-    expect(summary).toContain("2 of 37 findings verified by a person");
+    expect(summary).toContain("3 of 37 findings verified by a person");
     expect(await client.getReportMarkdown("a-juice-shop-lab", "report")).toContain("## Coverage");
     await expect(client.getReport("nope")).rejects.toMatchObject({ status: 404 });
   });
@@ -158,7 +169,7 @@ describe("demoClient", () => {
     expect(closed.status).toBe("closed");
     expect(closed.retest?.outcome).toBe("fixed");
     await expect(client.updateFinding("f-7f910fa0b432", { impact: "x" })).rejects.toMatchObject({ status: 409 });
-    expect((await client.getAssessment("a-juice-shop-lab")).totals.byStatus.closed).toBe(1);
+    expect((await client.getAssessment("a-juice-shop-lab")).totals.byStatus.closed).toBe(2);
     const reopened = await client.setFindingStatus("f-7f910fa0b432", { status: "open", reason: "Regressed." });
     expect(reopened.status).toBe("open");
   });
@@ -170,5 +181,19 @@ describe("demoClient", () => {
     const updated = await client.updateEvidence(piece.id, { redacted: true });
     expect(updated.redacted).toBe(true);
     await expect(client.updateEvidence("ev-000000000000", { redacted: true })).rejects.toMatchObject({ status: 404 });
+  });
+});
+
+describe("the demo's clock", () => {
+  it("keeps today's moves between midnight UTC and now, even half a minute after midnight", () => {
+    for (const now of [new Date("2026-11-15T00:00:30Z"), new Date("2026-11-15T13:20:00Z")]) {
+      const c = clock(now);
+      for (const f of [0.5, 0.6]) {
+        const t = c.today(f);
+        expect(t.toISOString().slice(0, 10)).toBe("2026-11-15");
+        expect(t.getTime()).toBeLessThanOrEqual(now.getTime());
+      }
+      expect(c.day(2, 14).toISOString()).toBe("2026-11-13T14:00:00.000Z");
+    }
   });
 });
