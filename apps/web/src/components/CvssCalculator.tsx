@@ -1,6 +1,6 @@
 import { CvssError, SEVERITY_LABELS, formatVector, parseVector, scoreVector, type CvssVector, type Finding, type Risk } from "@retest/schema";
 import { useState } from "react";
-import { BASE_METRICS, claimsAgainst, riskFromVector, startingVector, withMetric } from "../lib/cvss.js";
+import { BASE_METRICS, DEFAULT_VECTOR, claimsAgainst, riskFromVector, startingVector, withMetric } from "../lib/cvss.js";
 import { messageOf } from "../lib/format.js";
 
 /**
@@ -15,6 +15,8 @@ export function CvssCalculator({ f, store }: { f: Pick<Finding, "risk" | "source
   const [problem, setProblem] = useState<string | null>(null);
   const [stored, setStored] = useState<"idle" | "saving" | "done" | "failed">("idle");
   const [failure, setFailure] = useState("");
+  // With no vector on the finding or from any tool, the starting metrics are only a blank form: its 0.0 is not a score.
+  const [touched, setTouched] = useState(() => startingVector(f) !== DEFAULT_VECTOR || f.risk.cvss !== undefined);
 
   const scores = scoreVector(vector);
   const claims = claimsAgainst(f, scores.vector);
@@ -26,6 +28,7 @@ export function CvssCalculator({ f, store }: { f: Pick<Finding, "risk" | "source
     setText(formatVector(next));
     setProblem(null);
     setStored("idle");
+    setTouched(true);
   };
 
   const typed = (value: string) => {
@@ -34,6 +37,7 @@ export function CvssCalculator({ f, store }: { f: Pick<Finding, "risk" | "source
     try {
       setVector(parseVector(value));
       setProblem(null);
+      setTouched(true);
     } catch (e) {
       setProblem(e instanceof CvssError ? e.message : messageOf(e));
     }
@@ -64,15 +68,23 @@ export function CvssCalculator({ f, store }: { f: Pick<Finding, "risk" | "source
             <div className="hint">The score is the vector's; the severity is the score's. The temporal metrics E, RL and RC may be pasted too.</div>
           )}
         </div>
-        <div className="score">
-          <div className="label">Base score</div>
-          <div className={`value num${scores.baseScore === 0 ? " zero" : ""}`}>{scores.baseScore.toFixed(1)}</div>
-          <div className="word">{SEVERITY_LABELS[scores.severity]}</div>
-          <div className="muted text-[13px]">
-            Impact {scores.impactSubScore.toFixed(1)} · Exploitability {scores.exploitabilitySubScore.toFixed(1)}
-            {scores.temporalScore !== scores.baseScore ? ` · Temporal ${scores.temporalScore.toFixed(1)}` : ""}
+        {touched ? (
+          <div className="score">
+            <div className="label">Base score</div>
+            <div className={`value num${scores.baseScore === 0 ? " zero" : ""}`}>{scores.baseScore.toFixed(1)}</div>
+            <div className="word">{SEVERITY_LABELS[scores.severity]}</div>
+            <div className="muted text-[13px]">
+              Impact {scores.impactSubScore.toFixed(1)} · Exploitability {scores.exploitabilitySubScore.toFixed(1)}
+              {scores.temporalScore !== scores.baseScore ? ` · Temporal ${scores.temporalScore.toFixed(1)}` : ""}
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="score">
+            <div className="label">Base score</div>
+            <div className="word">Not scored yet</div>
+            <div className="muted text-[13px]">Rated {SEVERITY_LABELS[f.risk.severity]} without a CVSS vector. Set the metrics below to score it.</div>
+          </div>
+        )}
         {claims.length ? (
           <ul className="claims" aria-label="What the tools claimed">
             {claims.map((c) => (
@@ -85,7 +97,7 @@ export function CvssCalculator({ f, store }: { f: Pick<Finding, "risk" | "source
         <div className="actions">
           {stored === "done" ? (
             <span className="muted">Stored as the finding's risk.</span>
-          ) : isStored ? (
+          ) : !touched ? null : isStored ? (
             <span className="muted">This is the finding's risk.</span>
           ) : (
             <button type="button" className="btn primary" disabled={stored === "saving" || problem !== null} onClick={() => void save()}>

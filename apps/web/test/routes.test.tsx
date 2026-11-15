@@ -265,6 +265,19 @@ describe("/a/:id/findings/:fid (one finding)", () => {
     expect(within(standards).getByText("API8 Security Misconfiguration")).toBeInTheDocument();
   });
 
+  it("says a finding with no vector anywhere is not scored yet, instead of showing 0.0 beside its severity", async () => {
+    mount("/a/a-juice/findings/f-login");
+    const calc = await screen.findByRole("region", { name: "CVSS calculator" });
+    expect(within(calc).getByText("Not scored yet")).toBeInTheDocument();
+    expect(within(calc).getByText("Rated High without a CVSS vector. Set the metrics below to score it.")).toBeInTheDocument();
+    expect(within(calc).queryByText("0.0")).toBeNull();
+    expect(within(calc).queryByRole("button", { name: "Use as the finding's risk" })).toBeNull();
+    await userEvent.click(within(calc).getByRole("radio", { name: "Confidentiality: High" }));
+    expect(within(calc).queryByText("Not scored yet")).toBeNull();
+    expect(within(calc).getByText("7.5")).toBeInTheDocument();
+    expect(within(calc).getByRole("button", { name: "Use as the finding's risk" })).toBeInTheDocument();
+  });
+
   it("scores a vector as the schema does, starting from the finding's own, and compares it with the tools' claims", async () => {
     mount("/a/a-juice/findings/f-jwt");
     const calc = await screen.findByRole("region", { name: "CVSS calculator" });
@@ -284,7 +297,7 @@ describe("/a/:id/findings/:fid (one finding)", () => {
     const calc = await screen.findByRole("region", { name: "CVSS calculator" });
     const box = within(calc).getByRole("textbox", { name: "Vector" });
     expect(box).toHaveValue("CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N");
-    expect(within(calc).getByText("0.0")).toBeInTheDocument();
+    expect(within(calc).getByText("Not scored yet")).toBeInTheDocument();
     await userEvent.clear(box);
     await userEvent.type(box, "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N");
     expect(within(calc).getByText(/metric A is missing/)).toBeInTheDocument();
