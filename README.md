@@ -6,7 +6,7 @@ Live: https://retest-francesco-saponaro.netlify.app
 
 ## A warning about the lab
 
-Retest will ship with a Docker lab (OWASP Juice Shop, ZAP and Nmap bound to 127.0.0.1) so that anyone cloning it gets real findings in minutes. Scanning is not neutral: it sends traffic that can crash a service, trip an alarm or break a law. Never point it at anything you don't own or don't have written permission to test, with the scope and the limits agreed first. The lab exists so that there is always something safe to point it at.
+Retest comes with a Docker lab (OWASP Juice Shop, with Nmap, Nuclei, ZAP and Trivy pointed at it, and every port bound to 127.0.0.1) so that anyone cloning it gets real findings in minutes. Scanning is not neutral: it sends traffic that can crash a service, trip an alarm or break a law. Never point it at anything you don't own or don't have written permission to test, with the scope and the limits agreed first. The lab exists so that there is always something safe to point it at.
 
 ## Status
 
@@ -21,7 +21,9 @@ Being built one stage at a time, an evening each. Done so far:
 7. The workflow. A finding moves one phase at a time and cannot enter validation without evidence a person captured, nor remediation until the impact and the fix are written; moving back needs a reason. A false positive needs a reason and counts as validated; a risk is accepted only once rated; a retest that found the finding fixed is the only thing that closes it. Every move is a line in the history, which has its own screen. The finding page carries all of it: the phase trail with the next move, the forms that ask why, the impact and the fix written in place, evidence added and redacted, the retest recorded. What a person decided survives a re-import.
 8. The reports. One report model is worked out from the rows and rendered three ways: the technical report and the executive summary as markdown from the API, and a report screen in the web app that prints to PDF. Every finding says whether a person verified it; only redacted evidence is shown; the summary has the top risks with verified ones first, a day-by-day trend, a note on CVSS against business risk, and a count of the serious findings that are still only a scanner's claim; the technical report ends with an OWASP Top 10 and ASVS coverage matrix that tells "looked and found nothing" from "nobody looked".
 
-Still to come: the lab and the command line.
+9. The lab, the command line and CI. `lab/run.sh` brings up PostgreSQL, the API, the web app and Juice Shop, scans Juice Shop with Nmap, Nuclei, ZAP baseline and Trivy, imports everything through `apps/cli` into a new assessment and writes both reports. GitHub Actions runs the lint, the types, the tests, both builds and a dependency audit, checks the lab script and builds the lab's images. A review of the project against its own rules: the API now sends security headers on every answer and still no CORS, a source's link can only be http or https, and the demo is served with a content security policy. The phone layout was checked on every screen.
+
+Still to come: the final docs.
 
 ## Layout
 
@@ -30,8 +32,8 @@ packages/schema    zod schemas and types: Finding, Asset, Evidence, Assessment, 
 packages/parsers   one parser per tool, then normalize(), dedupe() and classify()
 apps/api           Fastify, Drizzle, PostgreSQL; PGlite in tests and for a quick start
 apps/web           Vite, React, TanStack Router and Query, Tailwind; a static demo mode
-apps/cli           retest import / retest report, talking to the API                   (stage 9)
-lab/               docker compose: postgres, api, web, juice-shop, a scanner container (stage 9)
+apps/cli           retest new / import / report / assessments, talking to the API
+lab/               docker compose: postgres, api, web, juice-shop, a scanner container; run.sh
 ```
 
 pnpm workspaces, TypeScript in strict mode everywhere, Vitest for the tests, ESLint with a flat config. Node 22 (`.nvmrc`).
@@ -46,7 +48,40 @@ pnpm lint
 pnpm -r build      # tsc for each package, vite for the web app
 ```
 
-The web tests render the two screens with Testing Library against a fake client, and run the demo's in-browser API in Node to check that it produces the same numbers as the API's own seed.
+CI (`.github/workflows/ci.yml`) runs the same commands plus the static demo build and `pnpm audit --prod`, then checks `lab/run.sh` with shellcheck, builds the lab's API and web images, and starts PostgreSQL and the API to check that it answers.
+
+The web tests render the screens with Testing Library against a fake client, and run the demo's in-browser API in Node to check that it produces the same numbers as the API's own seed.
+
+## Run the lab
+
+You need Docker with the compose plugin, and nothing else on the machine: the API image carries the command line.
+
+```
+cp lab/.env.example lab/.env      # set POSTGRES_PASSWORD and RETEST_JWT_SECRET (openssl rand -hex 32)
+lab/run.sh
+```
+
+It starts PostgreSQL, the API (127.0.0.1:3001), the web app (127.0.0.1:8080) and Juice Shop 17.1.1 (127.0.0.1:3000, and 172.30.0.10 on the lab's own network). It builds a scanner image (ZAP's stable image with Nmap and Nuclei added, templates fetched at build time) and runs, against Juice Shop only:
+
+- `nmap -sV --script vulners -p 3000` (the vulners script asks vulners.com about the versions it finds, so the scanner needs to reach the internet);
+- `nuclei` with the community templates;
+- `zap-baseline.py`, which is passive: it reads what the app sends and attacks nothing;
+- Trivy on the Juice Shop image, from a `docker save` copy, so no container gets the Docker socket.
+
+Then it mints a two-hour token, creates an assessment whose scope is exactly Juice Shop's address, URL and image, imports the four files and writes `lab/out/report.md` and `lab/out/summary.md`. Open http://127.0.0.1:8080, paste the token on the Connect screen and the assessment is there with the real findings, waiting to be validated. Semgrep needs Juice Shop's source checked out and Prowler needs a cloud account you own, so neither is in the script; their files import the same way.
+
+## The command line
+
+```
+retest assessments
+retest new --name "Juice Shop lab" --target 127.0.0.1 --target http://127.0.0.1:3000 --authorized-by me
+retest import --tool nmap scan.xml --assessment <id>
+retest import --tool semgrep results.sarif --assessment <id> --repository juice-shop
+retest report <id>                    # the technical report, to stdout
+retest report <id> --summary --out summary.md
+```
+
+It reads `RETEST_API_URL` (default `http://127.0.0.1:3001`) and `RETEST_TOKEN`, prints what each import did and the API's own reason when it refuses, and exits 0, 1 when the API or the disk said no, or 2 when the command was wrong. Build it with `pnpm -r build` and run `node apps/cli/dist/cli.js`, or `pnpm -C apps/cli start --` with the arguments. Its tests run every command against the real API in memory.
 
 ## Run the API
 
@@ -147,6 +182,19 @@ The demo takes three of the lab's findings through the workflow after the import
 `classify(findings)` settles the risk and fills the mappings. A CVSS vector from a tool is parsed and scored here, compared with the score the tool printed, and only then stored, with the severity set from the computed score; a score with no vector is taken as a severity word and noted as taken on trust. Every CWE goes through the table in `packages/schema` and the OWASP Top 10, OWASP API Top 10, ASVS and CIS columns are the union of what comes back. A CWE or a cloud check the tables do not know is reported in `unmapped`, not mapped by guesswork.
 
 The fixtures in `packages/parsers/fixtures/` are in the shape of a run against the lab (Juice Shop on 127.0.0.1:3000, scanned from the same machine; the Juice Shop source and image; two lab VMs for the Nmap edge cases; a small AWS lab account for Prowler), trimmed to a handful of results so that the tests can count them exactly. The CVE ids, template ids, plugin ids, rule ids and check ids are the real ones; the CVSS vectors compute to the scores printed next to them. The port lines in the Nmap evidence are a simplified form of what `nmap` prints: same words, without the column padding.
+
+## How Retest protects itself
+
+A tool that holds unfixed vulnerabilities and the evidence for them is worth attacking, so I held it to the checks it helps run on other people's apps.
+
+- **Who you are.** Every route but `/health` needs a bearer token: HS256 with the algorithm pinned on verification, `sub` and `exp` required, and a secret of at least 32 characters with no default. There is no login form to brute-force; tokens are minted by whoever holds the secret.
+- **What you can see.** Every row is reached through its assessment, and an assessment is visible to its owner or an admin. Someone else's assessment answers 404, the same as one that does not exist.
+- **What you can send.** Every body and query is checked by a strict zod schema (unknown fields refused), imports have their own body size limit and a tighter rate limit, and every user (or address, without a valid token) has a rate limit counted before authentication.
+- **What comes back.** Errors say what was wrong with the request and nothing about the server; a 500 is "internal error". Every answer carries `X-Content-Type-Options: nosniff`, `Cache-Control: no-store`, `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'` and `Referrer-Policy: no-referrer`. There is no CORS: the web app reaches the API on its own origin, through the dev server's proxy or nginx in the lab, so no other site can read an answer.
+- **What it shows.** Everything a scanner file contains is untrusted. React escapes all of it, nothing is rendered as HTML, and a source's link is kept only if it is http or https, so a crafted file cannot slip a `javascript:` link onto a finding. Evidence reaches a report only once it is marked redacted, and it cannot be marked while a line still carries a cookie, a token or a key.
+- **Where it runs.** The demo is served with a content security policy that allows scripts from its own origin and WebAssembly for the in-browser database, and nothing else. The lab binds every port to 127.0.0.1 and keeps its secrets in `lab/.env`, which git ignores.
+
+`pnpm audit --prod` finds nothing. The full audit reports two moderate advisories in development tools only (esbuild's dev server, pulled in by drizzle-kit, and minimatch inside ESLint); neither ships or runs in the API, the web app or the command line.
 
 ## Licence
 

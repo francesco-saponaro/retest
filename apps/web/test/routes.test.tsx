@@ -116,7 +116,7 @@ describe("/a/:id/findings (the table)", () => {
   it("leads with what is shown and lists every finding, most severe first, with a link to each", async () => {
     mount("/a/a-juice/findings", sixClient());
     expect(await screen.findByRole("heading", { level: 1, name: "Findings" })).toBeInTheDocument();
-    expect(screen.getByText("6 findings: 2 critical, 1 high, 2 medium; 1 verified.")).toBeInTheDocument();
+    expect(screen.getByText("6 findings: 2 critical, 1 high, 2 medium; 1 checked.")).toBeInTheDocument();
     const table = screen.getByRole("table", { name: "Findings" });
     const rows = within(table).getAllByRole("row").filter((r) => r.querySelector("td.id"));
     expect(rows).toHaveLength(6);
@@ -140,7 +140,7 @@ describe("/a/:id/findings (the table)", () => {
     expect(await screen.findByText("1 of 6 findings match: 1 critical; none has reached validation.")).toBeInTheDocument();
     expect(router.state.location.search).toEqual({ severity: "critical", tool: "prowler" });
     await userEvent.click(screen.getByRole("button", { name: "Clear" }));
-    expect(await screen.findByText("6 findings: 2 critical, 1 high, 2 medium; 1 verified.")).toBeInTheDocument();
+    expect(await screen.findByText("6 findings: 2 critical, 1 high, 2 medium; 1 checked.")).toBeInTheDocument();
     expect(router.state.location.search).toEqual({});
   });
 

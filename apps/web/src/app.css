@@ -1141,6 +1141,15 @@
       margin-left: 0;
       max-width: none;
     }
+    /* On a narrow screen a title cut at twenty characters says nothing: let it take two lines. */
+    table.fold.findings td.id a {
+      white-space: normal;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
+      overflow-wrap: anywhere;
+    }
   }
   .warning {
     display: block;

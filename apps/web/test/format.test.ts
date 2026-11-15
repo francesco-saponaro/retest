@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { PHASES } from "@retest/schema";
-import { auditSentence, count, findingLine, findingState, findingsLine, headline, historyLine, nextStep, phaseLine, relativeDay, relativeTime, scopeLine, shortPhase, verifiedCount } from "../src/lib/format.js";
+import { auditSentence, count, findingLine, findingState, findingsLine, headline, historyLine, nextStep, phaseLine, relativeDay, relativeTime, scopeLine, shortPhase, checkedCount } from "../src/lib/format.js";
 import { totalsOf } from "./fake.js";
 import { cors, detailOf, juiceFindings, jwt, login, manyFindings, summaryOf } from "./findings.js";
 
@@ -32,10 +32,10 @@ describe("relativeTime", () => {
   });
 });
 
-describe("verifiedCount", () => {
+describe("checkedCount", () => {
   it("counts the findings that reached validation or a later phase", () => {
-    expect(verifiedCount(totalsOf({ recon: 4, assessment: 33 }))).toBe(0);
-    expect(verifiedCount(totalsOf({ assessment: 30, validation: 5, risk: 1, remediation: 1 }))).toBe(7);
+    expect(checkedCount(totalsOf({ recon: 4, assessment: 33 }))).toBe(0);
+    expect(checkedCount(totalsOf({ assessment: 30, validation: 5, risk: 1, remediation: 1 }))).toBe(7);
   });
 });
 
@@ -65,8 +65,8 @@ describe("findingLine", () => {
     expect(findingLine(totalsOf({ recon: 4, assessment: 33 }, { assets: 5 }))).toBe(
       "37 findings on 5 assets, and all 37 are still what a scanner said: none has reached validation.",
     );
-    expect(findingLine(totalsOf({ assessment: 30, validation: 5, risk: 2 }, { assets: 3 }))).toBe("37 findings on 3 assets; 7 verified, 30 still what a scanner said.");
-    expect(findingLine(totalsOf({ validation: 1 }, { assets: 1 }))).toBe("1 finding on 1 asset; all of it verified.");
+    expect(findingLine(totalsOf({ assessment: 30, validation: 5, risk: 2 }, { assets: 3 }))).toBe("37 findings on 3 assets; 7 checked by a person, 30 still what a scanner said.");
+    expect(findingLine(totalsOf({ validation: 1 }, { assets: 1 }))).toBe("1 finding on 1 asset; all of it checked by a person.");
     expect(findingLine(totalsOf({}, { assets: 2 }))).toBe("No findings yet on 2 assets: nothing has been imported.");
     expect(findingLine(totalsOf({}))).toBe("No findings and no assets yet: nothing has been imported.");
   });
@@ -81,7 +81,7 @@ describe("shortPhase", () => {
 describe("findingsLine", () => {
   const all = juiceFindings.map(summaryOf);
   it("counts what is shown, by severity, and whether any has been validated", () => {
-    expect(findingsLine({ all: 6, matched: 6, items: all, filtered: false })).toBe("6 findings: 2 critical, 1 high, 2 medium; 1 verified.");
+    expect(findingsLine({ all: 6, matched: 6, items: all, filtered: false })).toBe("6 findings: 2 critical, 1 high, 2 medium; 1 checked.");
     expect(findingsLine({ all: 6, matched: 2, items: all.filter((f) => f.risk.severity === "critical"), filtered: true })).toBe("2 of 6 findings match: 2 critical; none has reached validation.");
   });
   it("says so when nothing is there, and why", () => {
@@ -90,7 +90,7 @@ describe("findingsLine", () => {
   });
   it("counts the verified ones and says when the page is cut", () => {
     const verified = all.map((f, i) => ({ ...f, phase: i < 2 ? ("validation" as const) : f.phase }));
-    expect(findingsLine({ all: 6, matched: 6, items: verified, filtered: false })).toBe("6 findings: 2 critical, 1 high, 2 medium; 3 verified.");
+    expect(findingsLine({ all: 6, matched: 6, items: verified, filtered: false })).toBe("6 findings: 2 critical, 1 high, 2 medium; 3 checked.");
     expect(findingsLine({ all: 900, matched: 900, items: manyFindings(500), filtered: false })).toBe("The first 500 of 900 findings; narrow them with the filters.");
   });
 });

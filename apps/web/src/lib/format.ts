@@ -34,8 +34,8 @@ export function isoDate(iso: string): string {
   return iso.slice(0, 10);
 }
 
-/** The findings that reached validation or a later phase: the ones somebody, not a scanner, has looked at. */
-export function verifiedCount(totals: Totals): number {
+/** The findings that reached validation or a later phase: the ones somebody, not a scanner, has checked, false positives included. The report's "verified" leaves false positives out. */
+export function checkedCount(totals: Totals): number {
   return totals.byPhase.validation + totals.byPhase.risk + totals.byPhase.remediation;
 }
 
@@ -57,11 +57,11 @@ export function count(n: number, noun: string): string {
 export function findingLine(totals: Totals): string {
   const { findings, assets } = totals;
   if (findings === 0) return assets === 0 ? "No findings and no assets yet: nothing has been imported." : `No findings yet on ${count(assets, "asset")}: nothing has been imported.`;
-  const verified = verifiedCount(totals);
+  const verified = checkedCount(totals);
   const head = `${count(findings, "finding")} on ${count(assets, "asset")}`;
   if (verified === 0) return `${head}, and all ${findings} are still what a scanner said: none has reached validation.`;
-  if (verified === findings) return `${head}; all of it verified.`;
-  return `${head}; ${verified} verified, ${findings - verified} still what a scanner said.`;
+  if (verified === findings) return `${head}; all of it checked by a person.`;
+  return `${head}; ${verified} checked by a person, ${findings - verified} still what a scanner said.`;
 }
 
 /** What went wrong, in one line, whatever was thrown. */
@@ -111,7 +111,7 @@ export function findingsLine(page: { all: number; matched: number; items: Pick<F
   const head = filtered ? `${matched} of ${all} findings match` : count(all, "finding");
   const parts = severityParts(items);
   const verified = items.filter((f) => isVerified(f.phase)).length;
-  const tail = verified === 0 ? "none has reached validation" : `${verified} verified`;
+  const tail = verified === 0 ? "none has reached validation" : `${verified} checked`;
   return `${head}${parts ? `: ${parts}` : ""}; ${tail}.`;
 }
 
