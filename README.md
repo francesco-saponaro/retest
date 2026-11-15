@@ -2,55 +2,67 @@
 
 A vulnerability-assessment workbench. You give it the raw output of the scanners you already run (Nmap, Nuclei, OWASP ZAP, Semgrep, Trivy, Prowler) and it turns everything into findings in one format: title, asset and scope, impact, evidence, risk with a CVSS score, fix, retest. The same issue seen by three tools becomes one finding with three sources. Each finding is mapped to the OWASP Top 10, the OWASP API Top 10, ASVS and the CIS Controls, and walked through the six phases of an assessment (scope, recon, vulnerability assessment, validation, risk, remediation and retest) until there is a technical report and an executive summary. I am building it because a scanner only says where a problem might be. Checking it, judging the impact and getting it fixed takes most of the time, and I wanted a place where that work is written down.
 
-Live: https://retest-francesco-saponaro.netlify.app
+![The overview of the lab assessment: the six phases with the findings in each, the totals by severity and status](docs/screenshots/overview.png)
+
+**Live demo:** https://retest-francesco-saponaro.netlify.app. It is the whole app with the server taken out: the API's own code runs in your browser against PostgreSQL compiled to WebAssembly, and builds a lab assessment from six real-shaped scanner files when the page loads. Four findings have already been taken through the workflow over the last few days, so every state is on screen, including one closed by a retest. Nothing you change is kept; a reload makes the lab again.
 
 ## A warning about the lab
 
 Retest comes with a Docker lab (OWASP Juice Shop, with Nmap, Nuclei, ZAP and Trivy pointed at it, and every port bound to 127.0.0.1) so that anyone cloning it gets real findings in minutes. Scanning is not neutral: it sends traffic that can crash a service, trip an alarm or break a law. Never point it at anything you don't own or don't have written permission to test, with the scope and the limits agreed first. The lab exists so that there is always something safe to point it at.
 
-## Status
+## What it does
 
-Being built one stage at a time, an evening each. Done so far:
+- **Imports six tools' output.** Nmap (XML), Nuclei (JSON Lines), OWASP ZAP (JSON), Semgrep (SARIF), Trivy (JSON) and Prowler (OCSF), by file upload through the API or the command line. Importing the same file twice changes nothing.
+- **One finding format.** Every result becomes a finding with the seven fields a report needs: title, asset and scope, impact, evidence, risk, fix, retest. The same issue seen by several tools becomes one finding with several sources.
+- **Checks the numbers.** Every CVSS v3.1 vector is scored before it is stored, and a tool's score that disagrees with its own vector is corrected and noted. Each finding is mapped to the OWASP Top 10, the OWASP API Top 10, ASVS and the CIS Controls through its CWE.
+- **Walks each finding through the six phases of an assessment** with rules that cannot be skipped: no validation without evidence a person captured, no remediation before the impact and the fix are written, no closing except by a retest that found it fixed. Every move is in the history, with who and why.
+- **Keeps evidence safe to share.** A captured request is shown beside its response, a line carrying a cookie, a token or a key is pointed at, and a piece can only be marked redacted once those lines are gone. Reports print only redacted evidence.
+- **Writes the two reports.** The technical report for the people who fix things and the executive summary for the people who decide, as markdown from the API or as one printable page in the app. Both say which findings a person verified, and end with a coverage matrix that tells "looked and found nothing" from "nobody looked".
+- **Comes with a lab.** One script brings up Juice Shop on 127.0.0.1, scans it with Nmap, Nuclei, ZAP and Trivy, imports the results and writes the reports.
 
-1. The monorepo and `packages/schema`: the finding format, the six phases, the severity scale, a CVSS v3.1 parser and calculator checked against the examples published by FIRST, and the mapping tables (OWASP Top 10 2021, OWASP API Security Top 10 2023, ASVS v4 chapters, CIS Controls v8, with a lookup by CWE).
-2. `packages/parsers`, first half: the Nmap (XML) and Nuclei (JSON Lines) parsers, with fixtures and tests that count every result, and `normalize()`, which turns what a parser extracts into findings and assets in the schema's format.
-3. `packages/parsers`, second half: the ZAP (JSON report), Semgrep (SARIF), Trivy (JSON) and Prowler (OCSF) parsers, `dedupe()`, which folds the same weakness seen by several tools into one finding with several sources, and `classify()`, which checks every CVSS vector before storing it and maps each finding to the standards through its CWE.
-4. `apps/api`: Fastify over PostgreSQL through Drizzle, with PGlite (PostgreSQL in the process) for the tests and for running without a database. Assessments, assets, findings, evidence, imports and the two reports as routes; a bearer token on every request, every row reached through the assessment it belongs to, a rate limit per user, zod on every body; an audit log of every phase and status change and every import; a seed that imports the six fixtures.
-5. `apps/web`, the start of it: the list of assessments and the overview of one (the six-phase board, the totals by severity and status, the scope with what each target covers, the assets, the imports), and the demo mode behind the live link, which runs the API's own services in the browser against PostgreSQL compiled to WebAssembly, seeded from the same six scanner files.
-6. The findings table (every finding of an assessment, most severe first, with filters by severity, tool, phase, OWASP category and asset, a search over the title and the scope, and rows drawn only where the window is) and the finding page: the seven fields in the roadmap's order with the ones a tool cannot write marked as such, the evidence with a request beside its response and the lines that carry a credential pointed at, a CVSS v3.1 calculator that scores a vector the way the schema does and can store it as the finding's risk, and every tool that reported the finding with what it claimed.
-7. The workflow. A finding moves one phase at a time and cannot enter validation without evidence a person captured, nor remediation until the impact and the fix are written; moving back needs a reason. A false positive needs a reason and counts as validated; a risk is accepted only once rated; a retest that found the finding fixed is the only thing that closes it. Every move is a line in the history, which has its own screen. The finding page carries all of it: the phase trail with the next move, the forms that ask why, the impact and the fix written in place, evidence added and redacted, the retest recorded. What a person decided survives a re-import.
-8. The reports. One report model is worked out from the rows and rendered three ways: the technical report and the executive summary as markdown from the API, and a report screen in the web app that prints to PDF. Every finding says whether a person verified it; only redacted evidence is shown; the summary has the top risks with verified ones first, a day-by-day trend, a note on CVSS against business risk, and a count of the serious findings that are still only a scanner's claim; the technical report ends with an OWASP Top 10 and ASVS coverage matrix that tells "looked and found nothing" from "nobody looked".
+![The report: the executive summary, with the number of serious findings that are still only a scanner's claim](docs/screenshots/report.png)
 
-9. The lab, the command line and CI. `lab/run.sh` brings up PostgreSQL, the API, the web app and Juice Shop, scans Juice Shop with Nmap, Nuclei, ZAP baseline and Trivy, imports everything through `apps/cli` into a new assessment and writes both reports. GitHub Actions runs the lint, the types, the tests, both builds and a dependency audit, checks the lab script and builds the lab's images. A review of the project against its own rules: the API now sends security headers on every answer and still no CORS, a source's link can only be http or https, and the demo is served with a content security policy. The phone layout was checked on every screen.
+## Try it
 
-Still to come: the final docs.
-
-## Layout
-
-```
-packages/schema    zod schemas and types: Finding, Asset, Evidence, Assessment, Phase, Severity, CVSS, mappings
-packages/parsers   one parser per tool, then normalize(), dedupe() and classify()
-apps/api           Fastify, Drizzle, PostgreSQL; PGlite in tests and for a quick start
-apps/web           Vite, React, TanStack Router and Query, Tailwind; a static demo mode
-apps/cli           retest new / import / report / assessments, talking to the API
-lab/               docker compose: postgres, api, web, juice-shop, a scanner container; run.sh
-```
-
-pnpm workspaces, TypeScript in strict mode everywhere, Vitest for the tests, ESLint with a flat config. Node 22 (`.nvmrc`).
-
-## Run the tests
+The fastest way is the live demo above. On your own machine, with Node 22 and pnpm:
 
 ```
 pnpm install
-pnpm test          # vitest, every package
-pnpm typecheck
-pnpm lint
-pnpm -r build      # tsc for each package, vite for the web app
+VITE_DEMO=1 pnpm -C apps/web build && pnpm -C apps/web preview    # the demo, at http://localhost:4173
 ```
 
-CI (`.github/workflows/ci.yml`) runs the same commands plus the static demo build and `pnpm audit --prod`, then checks `lab/run.sh` with shellcheck, builds the lab's API and web images, and starts PostgreSQL and the API to check that it answers.
+The real thing, the API and the web app talking to it:
 
-The web tests render the screens with Testing Library against a fake client, and run the demo's in-browser API in Node to check that it produces the same numbers as the API's own seed.
+```
+export RETEST_JWT_SECRET="$(openssl rand -hex 32)"
+pnpm -r build
+pnpm -C apps/api seed me && pnpm -C apps/api start      # the API on 127.0.0.1:3001, with the lab assessment for "me"
+pnpm -C apps/web dev                                    # http://localhost:5173; paste `pnpm -s -C apps/api token me` on Connect
+```
+
+Or the whole lab with Docker, which scans a real Juice Shop: see [Run the lab](#run-the-lab).
+
+## How a finding moves
+
+The workflow rules live in `packages/schema/src/workflow.ts` and the API and the web app both call them, so a disabled button on the screen and a 409 from the API give the same sentence. In short: phases are passed one at a time; validation needs at least one piece of evidence without a tool as its source, since a scanner only says where to look; remediation needs the impact and the fix written; moving back needs a reason. A false positive needs a reason and takes the finding to validation if it had not reached it, since that is the phase in which it was found out; an accepted risk needs a reason and a finding that has been rated; a closed finding is read-only until it is reopened, with a reason. A retest is recorded only in remediation, with an outcome that happened and notes on what the checks showed; `fixed` closes the finding, anything else leaves it open for the next round.
+
+An import parses the file, places what it finds on the assessment's assets, folds it into the findings already there, classifies the result and writes what changed. Importing the same file twice changes nothing. An asset the scope does not cover is recorded as out of scope and the import says so. A finding a person has validated or set aside keeps what the person decided (its risk, its text, its phase and status) when a tool reports it again; only the new sources and evidence are added.
+
+## The screens
+
+`/` lists the assessments with the phase each is in; `/a/:id` is one assessment's overview, which reads top to bottom as the six phases with the findings in each (the current one marked), the findings by severity and by status, the scope with how many assets each target covers, the assets, and the imports with what each produced. The line under the title says how much of the assessment is still only what a scanner said, because that is the number that decides what to do next.
+
+`/a/:id/findings` is the table: most severe first, with the asset, the CVSS score when there is one, the phase, the tools that reported it, how many pieces of evidence it has and its OWASP categories. The filters (severity, tool, phase, OWASP category, asset) and the search live in the URL, so a filtered list can be linked to and the back button undoes a filter; the rows are virtualised, so an assessment with five hundred findings scrolls like one with twenty. `/a/:id/findings/:fid` is one finding. It opens with where it stands: the six phases as a trail with its own marked, the button for the next phase (disabled, with the rule that refuses it written under it, until the rule is met), and the moves that need a reason: back, false positive, accepted risk, reopen. In remediation the retest form is there too. Then the seven fields in the order the format lists them, with "Not written yet" on the impact and the fix until somebody writes them in place; the evidence, with a form to add a piece a person captured, a captured request shown beside its response, a mark saying whether each piece has been redacted, the text editable, and a note on any line that carries a cookie, an authorization header, a JWT or an AWS key, since those must go before the piece can be marked redacted and reach a report; a CVSS v3.1 calculator that starts from the finding's own vector (or the tool's), scores any change or pasted vector as the schema does, says what each tool claimed, and stores the vector as the finding's risk through the API's own validation; the sources with the tool's rating, its CVSS claim and a link to its own page for the check; and the finding's own history. `/a/:id/audit` is the whole history of an assessment, newest first: who did what, when, and the reason given.
+
+`/a/:id/report` is what goes to the client, on one sheet: the executive summary first, then the technical report. Above it, the number that decides whether it can go yet: how many high or critical findings nobody has verified. Print it (or save as PDF) and the browser chrome goes, the technical report starts on a new page and no finding is split across two. The two buttons beside it download the same documents as markdown, rendered from the same model, so the PDF and the files say the same thing.
+
+## How the reports read
+
+A finding counts as verified when a person has taken it to validation or later and has not marked it a false positive. Everything else is a scanner's claim, and both documents say so on every finding. The top risks list the open findings above informational, most severe first, and at the same severity a verified finding comes before an unverified one.
+
+The coverage matrix is the part that is easy to misread. A blank OWASP category can mean the tools looked and found nothing, or that no tool that ran looks for that kind of issue at all. `packages/schema/src/coverage.ts` holds which categories each tool looks for, the way the lab runs it (ZAP baseline is passive, so it does not look for injection; Trivy only knows packages with CVEs; no scanner looks at design), and the matrix marks each row Findings, Looked and found nothing, or Not tested. ASVS rows are filled from the findings only: a scanner can show a requirement failing, never a chapter passing. Any finding with a CVE id also counts under A06, since a known CVE in someone else's code is what that category means.
+
+The trend is drawn from the imports (findings created each day) and the history (closed by a retest, set aside as false positive or accepted, reopened), with the open count carried from day to day.
 
 ## Run the lab
 
@@ -106,30 +118,7 @@ curl -s "localhost:3001/assessments/<id>/findings?severity=high,critical" -H "au
 curl -s "localhost:3001/assessments/<id>/summary.md" -H "authorization: Bearer $TOKEN"
 ```
 
-The routes:
-
-| Route | What it does |
-| --- | --- |
-| `POST /assessments`, `GET /assessments`, `GET /assessments/:id` | Create, list, read (with totals by severity, phase and status). |
-| `PATCH /assessments/:id`, `DELETE /assessments/:id` | Name, client and scope; delete with everything under it. |
-| `POST /assessments/:id/phase`, `POST /assessments/:id/status` | Move the engagement; each change is an audit line. |
-| `GET /assessments/:id/audit`, `GET /assessments/:id/imports` | What happened, in order. |
-| `POST /assessments/:id/assets`, `GET /assessments/:id/assets`, `GET`/`PATCH /assessments/:id/assets/:assetId` | The things under test. An asset is keyed by (assessment, id). |
-| `POST /assessments/:id/findings` | A finding made by hand, the seven fields in. |
-| `GET /assessments/:id/findings` | Filters `severity`, `phase`, `status`, `tool`, `owasp`, `assetId`, `q`, each a comma-separated list; `limit` and `offset`. |
-| `GET /findings/:id`, `PATCH /findings/:id` | The seven fields with the evidence and the asset; edit the written fields and the risk (refused once closed). |
-| `POST /findings/:id/phase` | Move one finding, under the rules below; 409 with the rule's sentence when it refuses. |
-| `POST /findings/:id/status` | `open`, `false-positive` or `accepted-risk`, with a reason; `closed` is refused here. |
-| `POST /findings/:id/retest` | `{outcome, notes, testedAt?}`: what the checks showed after the fix. `fixed` closes the finding. |
-| `GET /findings/:id/audit` | One finding's own history. |
-| `POST /findings/:id/evidence`, `PATCH /evidence/:id` | Add evidence as JSON or as a plain-text body; edit it, mark it redacted. |
-| `POST /imports` | A scanner's file, as JSON `{assessmentId, tool, content, filename, repository}` or as the raw body with those in the query. |
-| `GET /assessments/:id/report` | The report model both documents are rendered from, as JSON: counts, findings grouped by asset with whether each is verified, top risks, trend, coverage. |
-| `GET /assessments/:id/report.md`, `GET /assessments/:id/summary.md` | The technical report and the executive summary, markdown. |
-
-An import parses the file, places what it finds on the assessment's assets, folds it into the findings already there, classifies the result and writes what changed. Importing the same file twice changes nothing. An asset the scope does not cover is recorded as out of scope and the import says so. A finding a person has validated or set aside keeps what the person decided (its risk, its text, its phase and status) when a tool reports it again; only the new sources and evidence are added.
-
-The workflow rules live in `packages/schema/src/workflow.ts` and the API and the web app both call them, so a disabled button on the screen and a 409 from the API give the same sentence. In short: phases are passed one at a time; validation needs at least one piece of evidence without a tool as its source, since a scanner only says where to look; remediation needs the impact and the fix written; moving back needs a reason. A false positive needs a reason and takes the finding to validation if it had not reached it, since that is the phase in which it was found out; an accepted risk needs a reason and a finding that has been rated; a closed finding is read-only until it is reopened, with a reason. A retest is recorded only in remediation, with an outcome that happened and notes on what the checks showed; `fixed` closes the finding, anything else leaves it open for the next round.
+Every route, its auth rule, its body and its errors are in [docs/api.md](docs/api.md).
 
 ## Run the web app
 
@@ -142,21 +131,44 @@ Against the API, the app asks for a token on its Connect screen: mint one with `
 
 With `VITE_DEMO=1` there is no server at all. The build bundles PGlite (PostgreSQL compiled to WebAssembly, about 5 MB compressed), the migration, the six fixtures and the API's services, and the page makes the lab when it loads: the two assessments, their imports and the audit lines, through the same `runImport` the API runs. It is the real code path with the network taken out, which is why the demo's numbers are the ones the API tests assert. Nothing is stored: reload the page and the lab is made again, with the same ids, so links to an assessment keep working.
 
-The screens so far: `/` lists the assessments with the phase each is in; `/a/:id` is one assessment's overview, which reads top to bottom as the six phases with the findings in each (the current one marked), the findings by severity and by status, the scope with how many assets each target covers, the assets, and the imports with what each produced. The line under the title says how much of the assessment is still only what a scanner said, because that is the number that decides what to do next.
+## Run the tests
 
-`/a/:id/findings` is the table: most severe first, with the asset, the CVSS score when there is one, the phase, the tools that reported it, how many pieces of evidence it has and its OWASP categories. The filters (severity, tool, phase, OWASP category, asset) and the search live in the URL, so a filtered list can be linked to and the back button undoes a filter; the rows are virtualised, so an assessment with five hundred findings scrolls like one with twenty. `/a/:id/findings/:fid` is one finding. It opens with where it stands: the six phases as a trail with its own marked, the button for the next phase (disabled, with the rule that refuses it written under it, until the rule is met), and the moves that need a reason: back, false positive, accepted risk, reopen. In remediation the retest form is there too. Then the seven fields in the order the format lists them, with "Not written yet" on the impact and the fix until somebody writes them in place; the evidence, with a form to add a piece a person captured, a captured request shown beside its response, a mark saying whether each piece has been redacted, the text editable, and a note on any line that carries a cookie, an authorization header, a JWT or an AWS key, since those must go before the piece can be marked redacted and reach a report; a CVSS v3.1 calculator that starts from the finding's own vector (or the tool's), scores any change or pasted vector as the schema does, says what each tool claimed, and stores the vector as the finding's risk through the API's own validation; the sources with the tool's rating, its CVSS claim and a link to its own page for the check; and the finding's own history. `/a/:id/audit` is the whole history of an assessment, newest first: who did what, when, and the reason given.
+```
+pnpm install
+pnpm test          # vitest, every package
+pnpm typecheck
+pnpm lint
+pnpm -r build      # tsc for each package, vite for the web app
+```
 
-`/a/:id/report` is what goes to the client, on one sheet: the executive summary first, then the technical report. Above it, the number that decides whether it can go yet: how many high or critical findings nobody has verified. Print it (or save as PDF) and the browser chrome goes, the technical report starts on a new page and no finding is split across two. The two buttons beside it download the same documents as markdown, rendered from the same model, so the PDF and the files say the same thing.
+CI (`.github/workflows/ci.yml`) runs the same commands plus the static demo build and `pnpm audit --prod`, then checks `lab/run.sh` with shellcheck, builds the lab's API and web images, and starts PostgreSQL and the API to check that it answers.
 
-## How the reports read
+The web tests render the screens with Testing Library against a fake client, and run the demo's in-browser API in Node to check that it produces the same numbers as the API's own seed.
 
-A finding counts as verified when a person has taken it to validation or later and has not marked it a false positive. Everything else is a scanner's claim, and both documents say so on every finding. The top risks list the open findings above informational, most severe first, and at the same severity a verified finding comes before an unverified one.
+## The stack, and why each piece is there
 
-The coverage matrix is the part that is easy to misread. A blank OWASP category can mean the tools looked and found nothing, or that no tool that ran looks for that kind of issue at all. `packages/schema/src/coverage.ts` holds which categories each tool looks for, the way the lab runs it (ZAP baseline is passive, so it does not look for injection; Trivy only knows packages with CVEs; no scanner looks at design), and the matrix marks each row Findings, Looked and found nothing, or Not tested. ASVS rows are filled from the findings only: a scanner can show a requirement failing, never a chapter passing. Any finding with a CVE id also counts under A06, since a known CVE in someone else's code is what that category means.
+- **TypeScript in strict mode, in a pnpm workspace.** The schema, the parsers, the API, the web app and the command line share types, so a finding means the same thing everywhere.
+- **zod** for every schema. The same schema validates a request body, a parsed scanner file and a row read back, and its refinements hold the rules a type cannot (a severity that matches its score, a closed finding that has a fixed retest).
+- **Fastify** for the API: fast, with hooks for authentication and headers, and `inject()` so the tests run requests without a socket.
+- **Drizzle over PostgreSQL**, with **PGlite** in the tests, in the demo and for a quick start. The same SQL runs everywhere, so the demo's numbers are the API tests' numbers.
+- **jose** for the tokens, with the algorithm pinned.
+- **React 19, TanStack Router and TanStack Query** for the web app: routes in code with typed params and search, loaders that fill the cache before a screen renders, and **TanStack Virtual** for long tables.
+- **Tailwind v4** plus a small stylesheet of tokens. One ink, one accent, and colour only where it carries meaning.
+- **Vitest and Testing Library** for every test, and **Docker Compose** for the lab.
 
-The trend is drawn from the imports (findings created each day) and the history (closed by a retest, set aside as false positive or accepted, reopened), with the open count carried from day to day.
+## Layout
 
-The demo takes three of the lab's findings through the workflow after the imports, so every state of it is on screen: the CORS finding validated with a curl capture and rated, ZAP's timestamp alert marked a false positive, and the jsonwebtoken CVE confirmed in the container, written up and retested against the same image, where it is still open. Nothing is closed; recording a retest that found it fixed closes one, and a reload makes the lab again.
+```
+packages/schema    zod schemas and types: Finding, Asset, Evidence, Assessment, Phase, Severity, CVSS, mappings
+packages/parsers   one parser per tool, then normalize(), dedupe() and classify()
+apps/api           Fastify, Drizzle, PostgreSQL; PGlite in tests and for a quick start
+apps/web           Vite, React, TanStack Router and Query, Tailwind; a static demo mode
+apps/cli           retest new / import / report / assessments, talking to the API
+lab/               docker compose: postgres, api, web, juice-shop, a scanner container; run.sh
+docs/              api.md (every route), parsers.md (every tool's file), screenshots
+```
+
+pnpm workspaces, TypeScript in strict mode everywhere, Vitest for the tests, ESLint with a flat config. Node 22 (`.nvmrc`).
 
 ## The schema, in short
 
@@ -175,13 +187,7 @@ The demo takes three of the lab's findings through the workflow after the import
 - `trivy` (JSON, `trivy image -f json`): one per vulnerability row, on the image, with the package and version as the scope, the CVE, the CWEs, the CVSS v3 vector Trivy carries (NVD's first) and the fixed version as the fix.
 - `prowler` (OCSF, `-M json-ocsf`): one per failed check, on the cloud account, with the resource as the scope. Passed checks are counted, manual ones are listed as a warning. Prowler gives no CWE; `classify()` knows what the common checks are about.
 
-`normalize(raw, { assessmentId })` places each raw finding on an asset (a host for a port, a web app for a URL, a repository, an image or a cloud account for the rest, reusing the assets you pass in), gives it an id that depends only on what and where it is (so importing the same file twice gives the same ids), and fills the seven fields: what the tool knows goes in, and the impact and the fix get a placeholder that says they are not written yet. Each source keeps the tool's own rating (its severity word, its CVSS vector and score) as the tool gave it.
-
-`dedupe(findings)` folds findings that are the same weakness on the same asset into one finding with several sources. "The same" is decided by a fingerprint, in this order: the CVE ids when there are any; a short table of checks that different tools name differently (a missing header, a wildcard CORS policy); the CWE at the same place; and otherwise the tool's own id at the same place, which only matches a re-import. Findings on different assets never merge: a Semgrep hit in a route handler and a ZAP alert on the URL it serves may be the same bug, but proving that is validation, not parsing. The kept finding gains the other's sources and evidence, the higher severity, the wider scope, a real fix in place of a placeholder, and the later phase.
-
-`classify(findings)` settles the risk and fills the mappings. A CVSS vector from a tool is parsed and scored here, compared with the score the tool printed, and only then stored, with the severity set from the computed score; a score with no vector is taken as a severity word and noted as taken on trust. Every CWE goes through the table in `packages/schema` and the OWASP Top 10, OWASP API Top 10, ASVS and CIS columns are the union of what comes back. A CWE or a cloud check the tables do not know is reported in `unmapped`, not mapped by guesswork.
-
-The fixtures in `packages/parsers/fixtures/` are in the shape of a run against the lab (Juice Shop on 127.0.0.1:3000, scanned from the same machine; the Juice Shop source and image; two lab VMs for the Nmap edge cases; a small AWS lab account for Prowler), trimmed to a handful of results so that the tests can count them exactly. The CVE ids, template ids, plugin ids, rule ids and check ids are the real ones; the CVSS vectors compute to the scores printed next to them. The port lines in the Nmap evidence are a simplified form of what `nmap` prints: same words, without the column padding.
+The rest of the pipeline (placing findings on assets, folding duplicates, checking CVSS, mapping to the standards) and how to add a parser are in [docs/parsers.md](docs/parsers.md).
 
 ## How Retest protects itself
 
@@ -195,6 +201,21 @@ A tool that holds unfixed vulnerabilities and the evidence for them is worth att
 - **Where it runs.** The demo is served with a content security policy that allows scripts from its own origin and WebAssembly for the in-browser database, and nothing else. The lab binds every port to 127.0.0.1 and keeps its secrets in `lab/.env`, which git ignores.
 
 `pnpm audit --prod` finds nothing. The full audit reports two moderate advisories in development tools only (esbuild's dev server, pulled in by drizzle-kit, and minimatch inside ESLint); neither ships or runs in the API, the web app or the command line.
+
+## What is real and what is simulated
+
+Real: the parsers read the tools' real formats; the CVE ids, CVSS vectors, template, plugin, rule and check ids in the fixtures are the real ones; the CVSS calculator gives FIRST's published scores; the API, the database and the rules are the same in the demo and on a server; the lab scans a real Juice Shop with the real tools.
+
+Simulated: the fixtures are trimmed to a handful of results so the tests can count them, and the AWS account in the Prowler fixture is a lab account with a documentation-style id. In the demo the evidence a person captured (the curl output, `npm ls`, the account summary) is written in by the seed, in the shape those commands print. The demo has no server and keeps nothing.
+
+## Known limits and what comes next
+
+- One shared token secret and no login: right for a single team, not for a company. Next is sign-in with an identity provider and assessments shared with named people.
+- The top risks are ordered by CVSS severity first, even where a likelihood and impact for this business were rated. Ordering by the business rating, once most findings carry one, comes next.
+- Which OWASP categories a tool looks for is a judgement written in `coverage.ts`, not read from the templates or rules that actually ran.
+- The report prints from the browser; there is no cover page or table of contents, and no PDF made on the server.
+- The lab does not run Semgrep (it needs Juice Shop's source) or Prowler (it needs a cloud account you own), and its scanner network can reach the internet, because the vulners script and the Nuclei templates need it.
+- Next after that: Burp Suite's XML export as a seventh parser, and a diff between two imports of the same tool so a retest can be a re-scan.
 
 ## Licence
 
