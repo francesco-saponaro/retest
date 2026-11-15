@@ -1,0 +1,8 @@
+# The demo is static: no API, no third-party scripts, no forms. PostgreSQL runs in the page as
+# WebAssembly, which is the one thing the policy has to allow ('wasm-unsafe-eval', not 'unsafe-eval').
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+  X-Frame-Options: DENY
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()

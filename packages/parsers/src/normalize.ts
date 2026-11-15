@@ -1,4 +1,4 @@
-import { AssetSchema, FindingSchema, UNASSESSED_IMPACT, UNWRITTEN_FIX, type Asset, type Evidence, type Finding, type Source } from "@retest/schema";
+import { AssetSchema, FindingSchema, SourceSchema, UNASSESSED_IMPACT, UNWRITTEN_FIX, type Asset, type Evidence, type Finding, type Source } from "@retest/schema";
 import type { RawFinding } from "./raw.js";
 import { sha256hex } from "./sha256.js";
 
@@ -40,7 +40,9 @@ export function normalize(raw: RawFinding[], options: NormalizeOptions): Normali
     const scope = cut(r.scope, SCOPE_MAX);
     const id = findingId(options.assessmentId, r, asset.id, scope);
     const source: Source = { tool: r.tool, rawId: r.rawId };
-    if (r.references[0]) source.reference = r.references[0];
+    // Only a web page becomes the link: a scanner file can carry any string, and a javascript: or data: URL is not a reference.
+    const link = r.references.find((x) => /^https?:\/\//i.test(x) && SourceSchema.shape.reference.safeParse(x).success);
+    if (link) source.reference = link;
     if (r.severity) source.severity = r.severity;
     if (r.cvss && (r.cvss.vector || r.cvss.score !== undefined)) {
       source.cvss = { ...(r.cvss.vector ? { vector: r.cvss.vector } : {}), ...(r.cvss.score !== undefined ? { score: r.cvss.score } : {}) };

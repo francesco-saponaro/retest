@@ -122,6 +122,13 @@ describe("normalize: Nuclei output", () => {
     expect(metrics.assetId).toBe("asset-web-127-0-0-1-3000");
   });
 
+  it("links the source to its first http or https reference and drops any other kind of link", () => {
+    const hostile = { ...nucleiRaw[0]!, references: ["javascript:alert(document.cookie)", "data:text/html,x", "https://example.org/advisory"] };
+    expect(normalize([hostile], { assessmentId: "lab", now }).findings[0]!.sources[0]!.reference).toBe("https://example.org/advisory");
+    const none = { ...nucleiRaw[0]!, references: ["javascript:alert(1)"] };
+    expect(normalize([none], { assessmentId: "lab", now }).findings[0]!.sources[0]!.reference).toBeUndefined();
+  });
+
   it("links the source to the template page and keeps the tool's own rating on it", () => {
     const cors = findings.find((f) => f.sources[0]!.rawId === "cors-misconfig:arbitrary-origin")!;
     expect(cors.sources).toEqual([

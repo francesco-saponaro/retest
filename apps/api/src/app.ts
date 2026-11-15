@@ -57,6 +57,16 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     }
   };
 
+  // Every answer, refusals and errors included. The API serves JSON and markdown, never a page, so
+  // nothing it sends should be framed, sniffed into HTML, kept by a shared cache or followed by a referrer.
+  // There is no CORS on purpose: the web app reaches the API through its own origin.
+  app.addHook("onSend", async (_req, reply) => {
+    reply.header("x-content-type-options", "nosniff");
+    reply.header("cache-control", "no-store");
+    reply.header("content-security-policy", "default-src 'none'; frame-ancestors 'none'");
+    reply.header("referrer-policy", "no-referrer");
+  });
+
   // Rate limiting runs before anything else, including authentication, so that a flood of bad
   // tokens is counted too. A valid token is counted per user; anything else per address.
   const keyGenerator = async (req: FastifyRequest): Promise<string> => {

@@ -20,6 +20,13 @@ describe("Source", () => {
     expect(SourceSchema.safeParse({ tool: "zap", rawId: "10021", reference: "zaproxy" }).success).toBe(false);
   });
 
+  it("takes only an http or https link, since the screen turns it into one a person clicks", () => {
+    for (const reference of ["javascript:alert(document.cookie)", "data:text/html,<b>x</b>", "file:///etc/passwd", "vbscript:msgbox(1)"]) {
+      expect(SourceSchema.safeParse({ tool: "nuclei", rawId: "x", reference }).success, reference).toBe(false);
+    }
+    expect(SourceSchema.safeParse({ tool: "nuclei", rawId: "x", reference: "http://127.0.0.1:3000/docs" }).success).toBe(true);
+  });
+
   it("keeps the tool's own rating as the tool gave it: a severity word, a CVSS vector, a score", () => {
     const s = SourceSchema.parse({
       tool: "trivy",

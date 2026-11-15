@@ -29,7 +29,8 @@ export const SourceSchema = z.object({
   tool: ToolSchema,
   rawId: z.string().min(1),
   /** A link to the tool's own page for this check, when it has one. */
-  reference: z.url().optional(),
+  /** A page about the check. http or https only: the screen turns it into a link a person clicks, and it comes from an imported file. */
+  reference: z.url({ protocol: /^https?$/ }).optional(),
   /** The tool's own severity word, when it rates its results. */
   severity: SeveritySchema.optional(),
   /** The tool's CVSS claim: a vector, a score, or both. */
