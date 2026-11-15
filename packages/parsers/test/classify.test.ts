@@ -119,14 +119,21 @@ describe("classify: the standards", () => {
     expect(unmapped).toEqual({ cwe: [], checks: [] });
   });
 
+  it("puts every finding with a CVE id under A06, since a known CVE is a vulnerable component", () => {
+    const image = classify(from("trivy", "trivy/juice-shop-image.json"), { now: later }).findings;
+    expect(image.every((f) => f.mappings.cve.length > 0 && f.mappings.owaspTop10.includes("A06"))).toBe(true);
+    const code = classify(from("semgrep", "semgrep/juice-shop.sarif"), { now: later }).findings;
+    expect(code.some((f) => f.mappings.owaspTop10.includes("A06"))).toBe(false);
+  });
+
   it("maps a finding with two CWEs to both categories, in the standards' order", () => {
     const { findings } = classify(from("trivy", "trivy/juice-shop-image.json"), { now: later });
-    const jwt = findings[2]!; // CWE-20 (A03) and CWE-327 (A02)
-    expect(jwt.mappings.owaspTop10).toEqual(["A02", "A03"]);
+    const jwt = findings[2]!; // CWE-20 (A03) and CWE-327 (A02), and a known CVE in a dependency (A06)
+    expect(jwt.mappings.owaspTop10).toEqual(["A02", "A03", "A06"]);
     expect(jwt.mappings.asvs).toEqual(["V5", "V6", "V9"]);
     expect(jwt.mappings.cis).toEqual([3, 16]);
     const expressJwt = findings[3]!; // CWE-287 (A07, API2) and CWE-863 (A01, API1)
-    expect(expressJwt.mappings.owaspTop10).toEqual(["A01", "A07"]);
+    expect(expressJwt.mappings.owaspTop10).toEqual(["A01", "A06", "A07"]);
     expect(expressJwt.mappings.owaspApi).toEqual(["API1", "API2"]);
   });
 

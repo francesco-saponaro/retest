@@ -8,3 +8,4 @@ export * from "./finding.js";
 export * from "./assessment.js";
 export * from "./mappings/index.js";
 export * from "./workflow.js";
+export * from "./coverage.js";

@@ -146,6 +146,9 @@ function settleMappings(f: Finding, unmappedCwe: Set<number>, unmappedChecks: Se
     entry.asvs.forEach((c) => asvs.add(c));
     entry.cis.forEach((c) => cis.add(c));
   }
+  // A known CVE is a flaw in a component someone else wrote, which is what A06 means, whatever
+  // kind of weakness its CWE names.
+  if (f.mappings.cve.length) owaspTop10.add("A06");
   return {
     cwe: [...cwe],
     cve: [...new Set(f.mappings.cve)],
