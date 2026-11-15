@@ -1,0 +1,79 @@
+# The Retest lab: the app (PostgreSQL, the API, the web app) and a target to scan (OWASP Juice Shop),
+# plus a scanner container that only starts when run.sh asks for it. Every published port is bound
+# to 127.0.0.1, so nothing here is reachable from another machine. Never point the scanner at
+# anything you do not own or have written permission to test.
+name: retest-lab
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: retest
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in lab/.env}
+      POSTGRES_DB: retest
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U retest -d retest"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    networks: [app]
+
+  api:
+    build:
+      context: ..
+      dockerfile: lab/api.Dockerfile
+    environment:
+      DATABASE_URL: postgres://retest:${POSTGRES_PASSWORD}@postgres:5432/retest
+      RETEST_JWT_SECRET: ${RETEST_JWT_SECRET:?set RETEST_JWT_SECRET in lab/.env (32 characters or more)}
+      HOST: 0.0.0.0
+      PORT: "3001"
+      RETEST_API_URL: http://127.0.0.1:3001
+    ports:
+      - "127.0.0.1:3001:3001"
+    volumes:
+      # The scanners write here; the command line in this container reads from here.
+      - ./out:/lab-out:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [app]
+
+  web:
+    build:
+      context: ..
+      dockerfile: lab/web.Dockerfile
+    ports:
+      - "127.0.0.1:8080:80"
+    depends_on: [api]
+    networks: [app]
+
+  juice-shop:
+    image: bkimminich/juice-shop:v17.1.1
+    ports:
+      - "127.0.0.1:3000:3000"
+    networks:
+      target:
+        ipv4_address: 172.30.0.10
+
+  # Started only by run.sh (`docker compose run --rm scanner ...`). It sits on the target network
+  # alone, next to Juice Shop, and writes its files to lab/out.
+  scanner:
+    build: ./scanner
+    profiles: [scan]
+    volumes:
+      - ./out:/zap/wrk
+    networks:
+      target:
+        ipv4_address: 172.30.0.20
+
+networks:
+  app: {}
+  target:
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
+
+volumes:
+  pgdata: {}

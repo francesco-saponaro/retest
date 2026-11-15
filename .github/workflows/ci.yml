@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Lint, types, tests and builds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm -r typecheck
+      - run: pnpm test
+      - name: Build every package, the API and the command line
+        run: pnpm -r build
+      - name: Build the static demo
+        run: VITE_DEMO=1 pnpm -C apps/web build
+      - name: Audit the production dependencies
+        run: pnpm audit --prod
+
+  lab:
+    name: The lab's script and images
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check run.sh
+        run: shellcheck lab/run.sh
+      - name: Check the compose file
+        working-directory: lab
+        env:
+          POSTGRES_PASSWORD: ci-only
+          RETEST_JWT_SECRET: ci-only-secret-that-is-at-least-32-characters
+        run: docker compose --profile scan config --quiet
+      - name: Build the API and web images
+        working-directory: lab
+        env:
+          POSTGRES_PASSWORD: ci-only
+          RETEST_JWT_SECRET: ci-only-secret-that-is-at-least-32-characters
+        run: docker compose build api web
+      - name: Start PostgreSQL and the API, and check the API answers
+        working-directory: lab
+        env:
+          POSTGRES_PASSWORD: ci-only
+          RETEST_JWT_SECRET: ci-only-secret-that-is-at-least-32-characters
+        run: |
+          docker compose up -d postgres api
+          for i in $(seq 1 60); do curl -fsS http://127.0.0.1:3001/health && exit 0; sleep 2; done
+          docker compose logs api
+          exit 1
