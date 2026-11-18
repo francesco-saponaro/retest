@@ -238,6 +238,23 @@
   .explain details[open] summary::before {
     content: "\2212";
   }
+  .by-tool {
+    display: grid;
+    gap: 6px;
+    margin-bottom: 6px;
+  }
+  .by-tool li {
+    display: grid;
+    grid-template-columns: 112px 1fr;
+    gap: 12px;
+    align-items: baseline;
+  }
+  @media (max-width: 760px) {
+    .by-tool li {
+      grid-template-columns: 1fr;
+      gap: 2px;
+    }
+  }
   .more-warnings summary {
     margin-top: 4px;
     color: var(--text);

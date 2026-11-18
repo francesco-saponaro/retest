@@ -1,13 +1,14 @@
 import { useQuery, useSuspenseQuery, type UseQueryResult } from "@tanstack/react-query";
 import { Link, useRouter, type ErrorComponentProps } from "@tanstack/react-router";
-import type { Asset, AssetKind } from "@retest/schema";
+import { OWASP_TOP_10_2021, type Asset, type AssetKind } from "@retest/schema";
 import type { ReactNode } from "react";
 import type { AssessmentDetail, AuditLine, FindingSummary, ImportOut, Totals } from "../api/client.js";
 import { Explain } from "../components/Explain.js";
 import { PhaseBoard } from "../components/PhaseBoard.js";
 import { SeverityTray } from "../components/SeverityTray.js";
 import { StatusPill } from "../components/StatusPill.js";
-import { auditSentence, count, findingLine, isoDate, messageOf, phaseLine, relativeTime, scopeLine } from "../lib/format.js";
+import { SeverityMark } from "../components/SeverityMark.js";
+import { auditSentence, count, findingLine, headline, isoDate, messageOf, phaseLine, relativeTime, scopeLine } from "../lib/format.js";
 import { coveredByScope } from "@retest/api/services/scope.js";
 import { assessmentQuery, assetsQuery, auditQuery, findingsQuery, importsQuery } from "../queries.js";
 import { assessmentRoute } from "../router.js";
@@ -89,6 +90,19 @@ export function Overview() {
           <StatusStrip totals={a.totals} />
         </div>
       </section>
+
+      {findings.data && findings.data.items.length > 0 ? (
+        <section className="section" aria-labelledby="by-tool-heading">
+          <header>
+            <h2 id="by-tool-heading">What each scanner found</h2>
+            <span className="note">most serious first</span>
+          </header>
+          <Explain>
+            Each scanner looks at a different side of the target, so each one finds different kinds of problems. Here are the three most serious from each, with the kind of risk each one is under it (from the OWASP Top 10, the standard list of web security risks); open one to see the details, or see everything that tool reported. A finding two tools agreed on is counted under both.
+          </Explain>
+          <ByTool id={id} items={findings.data.items} />
+        </section>
+      ) : null}
 
       <div className="two section">
         <section>
@@ -274,6 +288,77 @@ function assetTools(items: FindingSummary[] | undefined): Map<string, string[]> 
 function toolList(tools: string[]) {
   if (tools.length === 0) return <span className="muted">nothing yet</span>;
   return tools.map((t) => TOOL_NAMES[t] ?? t).join(", ");
+}
+
+/** "A03 Injection" in plain words: the OWASP Top 10 names, without the codes. */
+function categoryNames(ids: string[]): string {
+  return ids.map((x) => OWASP_TOP_10_2021.find((c) => c.id === x)?.name ?? x).join(", ");
+}
+
+const TOOL_ORDER = ["nmap", "nuclei", "zap", "semgrep", "trivy", "prowler", "manual"];
+
+const TOOL_LOOKS_AT: Record<string, string> = {
+  nmap: "the machine: which ports are open and what answers on them",
+  nuclei: "the website, with ready-made checks for known mistakes",
+  zap: "the website, by browsing it like a visitor and reading every answer",
+  semgrep: "the source code, for dangerous patterns",
+  trivy: "the container image, for libraries with known flaws",
+  prowler: "the cloud account's settings",
+  manual: "what a person added by hand",
+};
+
+/** Per tool: how many findings it reported, its three most serious (the list comes most serious first), and a link to all of them. */
+function ByTool({ id, items }: { id: string; items: FindingSummary[] }) {
+  const tools = TOOL_ORDER.filter((t) => items.some((f) => f.sources.some((s) => s.tool === t)));
+  return (
+    <div className="panel">
+      <div className="table-wrap">
+        <table className="fold" aria-label="What each scanner found">
+          <thead>
+            <tr>
+              <th>Scanner</th>
+              <th>Its most serious findings</th>
+              <th className="n">Findings</th>
+            </tr>
+          </thead>
+          <tbody>
+            {tools.map((t) => {
+              const mine = items.filter((f) => f.sources.some((s) => s.tool === t));
+              return (
+                <tr key={t}>
+                  <td className="id">
+                    {TOOL_NAMES[t] ?? t}
+                    <span className="sub">looks at {TOOL_LOOKS_AT[t] ?? "its own target"}</span>
+                  </td>
+                  <td className="line2">
+                    <ul className="by-tool">
+                      {mine.slice(0, 3).map((f) => (
+                        <li key={f.id}>
+                          <SeverityMark severity={f.risk.severity} />
+                          <span>
+                            <Link to="/a/$id/findings/$fid" params={{ id, fid: f.id }}>
+                              {headline(f.title, 90)}
+                            </Link>
+                            {f.mappings.owaspTop10.length ? <span className="block muted">{categoryNames(f.mappings.owaspTop10)}</span> : null}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                    {mine.length > 3 ? (
+                      <Link to="/a/$id/findings" params={{ id }} search={{ tool: t as never }} className="crumb">
+                        All {count(mine.length, "finding")} from {TOOL_NAMES[t] ?? t}
+                      </Link>
+                    ) : null}
+                  </td>
+                  <td className="n key">{mine.length}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
 }
 
 const KIND_LABELS: Record<AssetKind, string> = {
