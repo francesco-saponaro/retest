@@ -51,6 +51,9 @@ services:
 
   juice-shop:
     image: bkimminich/juice-shop:v17.1.1
+    # A scan can knock Juice Shop over (it exited with a segmentation fault under Nuclei once);
+    # come back up so the next tool has something to scan.
+    restart: unless-stopped
     ports:
       - "127.0.0.1:3000:3000"
     networks:

@@ -55,6 +55,30 @@ describe("parseNucleiLine", () => {
     expect(r.severity).toBe("info");
   });
 
+  it("reads a real Nuclei line that writes null for the fields a template leaves empty", () => {
+    // Nuclei 3 writes "cve-id": null (and null for other empty fields) on templates without a CVE.
+    const line = JSON.stringify({
+      "template-id": "swagger-api",
+      info: {
+        name: "Public Swagger API - Detect",
+        severity: "info",
+        description: null,
+        reference: null,
+        remediation: null,
+        classification: { "cve-id": null, "cwe-id": ["cwe-200"], "cvss-metrics": null, "cvss-score": null },
+      },
+      type: "http",
+      host: "172.30.0.10:3000",
+      "matched-at": "http://172.30.0.10:3000/api-docs/swagger.yaml",
+      "extracted-results": null,
+      "matcher-status": true,
+    });
+    const r = parseNucleiLine(line);
+    expect(r.templateId).toBe("swagger-api");
+    expect(r.classification).toEqual({ cweIds: ["cwe-200"], cveIds: [] });
+    expect(r.description).toBeUndefined();
+  });
+
   it("refuses a line that is not JSON", () => {
     expect(() => parseNucleiLine('{"template-id": "x", "info": {"name": "cut')).toThrow(/not JSON/);
   });

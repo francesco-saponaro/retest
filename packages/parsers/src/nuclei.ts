@@ -90,6 +90,18 @@ export interface NucleiResult {
   timestamp?: string;
 }
 
+/**
+ * Nuclei writes null for the fields a template leaves empty ("cve-id": null, "description": null),
+ * which means the same as the field not being there. Dropping them first keeps the schema simple.
+ */
+function withoutNulls(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(withoutNulls);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value).filter(([, v]) => v !== null).map(([k, v]) => [k, withoutNulls(v)]));
+  }
+  return value;
+}
+
 /** Parse one line of output. Throws with a reason when the line is not a result. */
 export function parseNucleiLine(line: string): NucleiResult {
   let json: unknown;
@@ -98,7 +110,7 @@ export function parseNucleiLine(line: string): NucleiResult {
   } catch {
     throw new Error("not JSON");
   }
-  const parsed = LineSchema.safeParse(json);
+  const parsed = LineSchema.safeParse(withoutNulls(json));
   if (!parsed.success) {
     const issue = parsed.error.issues[0];
     throw new Error(issue ? `${issue.path.join(".") || "line"}: ${issue.message}` : "not a Nuclei result");

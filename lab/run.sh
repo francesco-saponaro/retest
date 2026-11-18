@@ -36,11 +36,14 @@ say "Nmap: versions and the vulners script on Juice Shop's port"
 docker compose run --rm scanner nmap -sV --script vulners -p 3000 -oX /zap/wrk/nmap.xml "$TARGET_IP" >/dev/null
 
 say "Nuclei: the community templates against the app"
-docker compose run --rm scanner nuclei -u "$TARGET_URL" -jsonl -o /zap/wrk/nuclei.jsonl -silent -disable-update-check || true
+# Fifty requests a second at most: at full speed Nuclei has crashed Juice Shop.
+docker compose run --rm scanner nuclei -u "$TARGET_URL" -jsonl -o /zap/wrk/nuclei.jsonl -silent -disable-update-check -rate-limit 50 || true
+wait_for http://127.0.0.1:3000 "Juice Shop"
 
 say "ZAP baseline: a passive scan, no attacks sent"
 # zap-baseline exits 1 or 2 when it finds something; that is a result, not a failure.
-docker compose run --rm scanner zap-baseline.py -t "$TARGET_URL" -J zap.json -I >/dev/null || true
+docker compose run --rm scanner zap-baseline.py -t "$TARGET_URL" -J zap.json -I || true
+wait_for http://127.0.0.1:3000 "Juice Shop"
 
 say "Trivy: the Juice Shop image, from a saved copy (no Docker socket handed to a container)"
 docker save "$IMAGE" -o out/juice-shop-image.tar
@@ -63,8 +66,14 @@ if [[ -s out/nuclei.jsonl ]]; then
 else
   echo "Nuclei found nothing to import."
 fi
-retest import --tool zap /lab-out/zap.json --assessment "$ID"
-retest import --tool trivy /lab-out/trivy.json --assessment "$ID"
+for run in zap:zap.json trivy:trivy.json; do
+  tool=${run%%:*} file=${run#*:}
+  if [[ -s "out/$file" ]]; then
+    retest import --tool "$tool" "/lab-out/$file" --assessment "$ID"
+  else
+    echo "$tool wrote no $file; nothing to import (its messages are above)."
+  fi
+done
 
 say "Reports"
 retest report "$ID" > out/report.md
