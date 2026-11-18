@@ -167,7 +167,7 @@ export const REAL_RUN_AT = new Date("2026-11-18T17:00:00Z");
 /**
  * The third assessment: what real scanners said about a real Juice Shop, imported unedited. Nmap,
  * Nuclei, ZAP and Trivy ran through `lab/run.sh` on a laptop (Windows, WSL, Docker Desktop);
- * Semgrep ran on the Juice Shop source separately. Nobody has validated anything here yet.
+ * Semgrep ran on the Juice Shop source on the same laptop. Nobody has validated anything here yet.
  */
 async function seedRealRun(db: Db): Promise<void> {
   const at = (minutes: number) => new Date(REAL_RUN_AT.getTime() + minutes * 60 * 1000);
@@ -175,7 +175,7 @@ async function seedRealRun(db: Db): Promise<void> {
     db,
     {
       name: "Juice Shop, real scan",
-      client: "Real Nmap, Nuclei, ZAP and Trivy from lab/run.sh, Semgrep on the source, 18 Nov 2026",
+      client: "Real output of five scanners, run on my laptop, 18 Nov 2026",
       scope: {
         targets: ["172.30.0.10", "http://172.30.0.10:3000", "bkimminich/juice-shop:v17.1.1", "juice-shop"],
         exclusions: [],

@@ -6,7 +6,7 @@ Juice Shop is a web shop built to be insecure on purpose, which is why it is saf
 
 ## The lab run: Nmap, Nuclei, ZAP and Trivy
 
-These four ran through `lab/run.sh` on my laptop: Windows 11, Ubuntu in WSL 2, Docker Desktop with its WSL integration turned on.
+All five ran on my laptop. These four ran through `lab/run.sh`: Windows 11, Ubuntu in WSL 2, Docker Desktop with its WSL integration turned on.
 
 ```
 git clone https://github.com/francesco-saponaro/retest.git
@@ -34,18 +34,18 @@ A few things worth knowing about the results:
 
 ## Semgrep, on the source
 
-Semgrep 1.186 ran separately the same day, on Juice Shop 17.1.1's source code, with the public rules:
+Semgrep reads source code, and the lab only has Juice Shop's image, so it is not in `lab/run.sh`. I ran it on the same laptop right after, with Semgrep's own Docker image (1.185.0) and the public rules as they were that day:
 
 ```
+cd ~
 git clone --depth 1 -b v17.1.1 https://github.com/juice-shop/juice-shop.git
-git clone --depth 1 https://github.com/semgrep/semgrep-rules.git      # at a5ad171
-cd juice-shop
-semgrep scan --metrics=off \
-  --config ../semgrep-rules/javascript --config ../semgrep-rules/typescript \
-  --sarif -o semgrep-juice-shop.sarif routes lib server.ts models
+git clone --depth 1 https://github.com/semgrep/semgrep-rules.git
+docker run --rm -v ~/juice-shop:/src -v ~/semgrep-rules:/rules -w /src semgrep/semgrep \
+  semgrep scan --metrics=off --config /rules/javascript --config /rules/typescript \
+  --sarif -o /src/semgrep-juice-shop.sarif routes lib server.ts models
 ```
 
-203 rules, 250 files, 87 results. Retest folds them into 64 findings on one repository asset. Among them are the real Juice Shop flaws (SQL built from user input in `routes/login.ts` and `routes/search.ts`, a JWT signing key written in `lib/insecurity.ts`, `eval` on the user's own name, XML parsed with external entities on), next to plenty of noise (23 "file name is not a literal" hits, 12 style warnings).
+203 rules, 107 files, 87 results. Retest folds them into 64 findings on one repository asset. Among them are the real Juice Shop flaws (SQL built from user input in `routes/login.ts` and `routes/search.ts`, a JWT signing key written in `lib/insecurity.ts`, `eval` on the user's own name, XML parsed with external entities on), next to plenty of noise (23 "file name is not a literal" hits, 12 style warnings).
 
 Together: 399 findings on 4 assets, none validated yet. That is the point of the validation phase: a scanner's output is a list of things to check, not a list of vulnerabilities.
 

@@ -153,7 +153,7 @@ function Frame({ total, demo = false }: { total?: number; demo?: boolean }) {
         {demo ? (
           <>
             <p className="sub">
-              "Juice Shop, real scan" is real: on 18 Nov 2026 I ran the lab script on my laptop. Nmap, Nuclei, ZAP and Trivy scanned OWASP Juice Shop (a web shop built to be insecure on purpose), Semgrep read its source code, and Retest imported all five outputs unedited.{" "}
+              "Juice Shop, real scan" is real: on 18 Nov 2026 I ran five scanners on my laptop. Nmap, Nuclei, ZAP and Trivy scanned OWASP Juice Shop (a web shop built to be insecure on purpose) through the lab script, Semgrep read its source code, and Retest imported all five outputs unedited.{" "}
               <a href="https://github.com/francesco-saponaro/retest/tree/main/lab/real-run">How it was done, step by step</a>.
             </p>
             <p className="sub">
