@@ -5,6 +5,8 @@ import prowlerLabAccount from "../../../../packages/parsers/fixtures/prowler/lab
 import semgrepJuiceShop from "../../../../packages/parsers/fixtures/semgrep/juice-shop.sarif?raw";
 import trivyJuiceShopImage from "../../../../packages/parsers/fixtures/trivy/juice-shop-image.json?raw";
 import zapJuiceShop from "../../../../packages/parsers/fixtures/zap/juice-shop.json?raw";
+import realNmap from "../../../../lab/real-run/nmap-juice-shop.xml?raw";
+import realSemgrep from "../../../../lab/real-run/semgrep-juice-shop.sarif?raw";
 
 /**
  * The scanner output the demo imports, bundled as text at build time. These are the same files
@@ -18,4 +20,10 @@ export const FIXTURES: Record<string, string> = {
   "semgrep/juice-shop.sarif": semgrepJuiceShop,
   "trivy/juice-shop-image.json": trivyJuiceShopImage,
   "prowler/lab-account.ocsf.json": prowlerLabAccount,
+};
+
+/** The unedited output of a real run against Juice Shop on 18 Nov 2026 (see `lab/real-run/README.md`). */
+export const REAL_RUN: Record<string, string> = {
+  "real-run/nmap-juice-shop.xml": realNmap,
+  "real-run/semgrep-juice-shop.sarif": realSemgrep,
 };

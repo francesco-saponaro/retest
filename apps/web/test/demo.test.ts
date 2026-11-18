@@ -16,23 +16,43 @@ afterAll(async () => {
 });
 
 describe("demoClient", () => {
-  it("is in demo mode and holds the two lab assessments, newest first", async () => {
+  it("is in demo mode and holds the two sample assessments and the real scan", async () => {
     expect(client.mode).toBe("demo");
     const items = await client.listAssessments();
-    expect(items.map((a) => [a.id, a.name, a.phase, a.status])).toEqual([
+    expect(items.map((a) => [a.id, a.name, a.phase, a.status]).sort()).toEqual([
       ["a-juice-shop-lab", "Juice Shop lab", "assessment", "active"],
+      ["a-juice-shop-real", "Juice Shop, real scan", "assessment", "active"],
       ["a-lab-network", "Lab network", "recon", "active"],
+    ]);
+    // Newest first: the lab network is always older than the Juice Shop lab.
+    const order = items.map((a) => a.id);
+    expect(order.indexOf("a-juice-shop-lab")).toBeLessThan(order.indexOf("a-lab-network"));
+  });
+
+  it("imports the real Nmap and Semgrep output unedited, with nothing validated yet", async () => {
+    const a = await client.getAssessment("a-juice-shop-real");
+    expect(a.totals).toMatchObject({ findings: 65, assets: 2, bySeverity: { critical: 0, high: 2, medium: 56, low: 6, info: 1 } });
+    expect(a.totals.byPhase).toMatchObject({ recon: 1, assessment: 64, validation: 0 });
+    const imports = await client.listImports(a.id);
+    expect(imports.map((i) => [i.tool, i.parsed, i.created, i.merged, i.warnings])).toEqual([
+      ["nmap", 1, 1, 0, []],
+      ["semgrep", 87, 64, 23, []],
+    ]);
+    const assets = await client.listAssets(a.id);
+    expect(assets.map((x) => [x.kind, x.name, x.inScope]).sort()).toEqual([
+      ["host", "localhost", true],
+      ["repository", "juice-shop", true],
     ]);
   });
 
   it("gives the Juice Shop lab the same totals the API seed produces", async () => {
-    const [juice] = await client.listAssessments();
-    const a = await client.getAssessment(juice!.id);
+    const juice = await client.getAssessment("a-juice-shop-lab");
+    const a = juice;
     expect(a.totals).toMatchObject({ findings: 37, assets: 5, bySeverity: { critical: 4, high: 7, medium: 11, low: 3, info: 12 } });
     // The imports leave everything in recon or assessment; the four checked ones are the walk-through's, below.
     expect(a.totals.byPhase.validation + a.totals.byPhase.risk + a.totals.byPhase.remediation).toBe(4);
-    expect(await client.listAssets(juice!.id)).toHaveLength(5);
-    const imports = await client.listImports(juice!.id);
+    expect(await client.listAssets(juice.id)).toHaveLength(5);
+    const imports = await client.listImports(juice.id);
     // Newest first, as the API lists them; the lab ran the tools in the opposite order.
     expect(imports.map((i) => [i.tool, i.created, i.merged])).toEqual([
       ["prowler", 7, 0],
@@ -43,18 +63,18 @@ describe("demoClient", () => {
       ["nmap", 4, 0],
     ]);
     expect(imports.every((i) => new Date(i.at).getTime() < Date.now())).toBe(true);
-    const audit = await client.listAudit(juice!.id);
+    const audit = await client.listAudit(juice.id);
     expect(audit.slice(0, 8).map((l) => l.action)).toEqual(["status", "phase", "import", "import", "import", "import", "import", "import"]);
   });
 
   it("gives the lab network its one host inside the authorised network", async () => {
-    const [, lab] = await client.listAssessments();
-    const a = await client.getAssessment(lab!.id);
+    const lab = await client.getAssessment("a-lab-network");
+    const a = lab;
     expect(a.scope.targets).toEqual(["10.0.10.0/24"]);
     expect(a.totals).toMatchObject({ findings: 6, assets: 1 });
-    const assets = await client.listAssets(lab!.id);
+    const assets = await client.listAssets(lab.id);
     expect(assets).toEqual([expect.objectContaining({ host: "10.0.10.11", inScope: true })]);
-    expect((await client.listImports(lab!.id)).map((i) => i.warnings)).toEqual([[]]);
+    expect((await client.listImports(lab.id)).map((i) => i.warnings)).toEqual([[]]);
   });
 
   it("answers a 404 for an assessment that is not there", async () => {

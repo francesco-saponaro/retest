@@ -34,7 +34,7 @@ import { summaryMarkdown, technicalMarkdown } from "@retest/api/report/markdown.
 import { validate } from "@retest/api/http.js";
 import tables from "../../../api/drizzle/0000_tables.sql?raw";
 import { ApiError, PAGE, type ApiClient } from "./client.js";
-import { FIXTURES } from "./fixtures.js";
+import { FIXTURES, REAL_RUN } from "./fixtures.js";
 
 /**
  * The demo: the API's own services, running in the browser against PostgreSQL compiled to
@@ -158,6 +158,37 @@ async function seedDemo(db: Db, now: Date): Promise<void> {
   // The lab was authorised three days ago at nine (UTC) and its six imports followed, two minutes apart.
   await seedLab(db, { ownerId: DEMO_USER.sub, now: clock(now).day(3, 9), read, assessmentId: "a-juice-shop-lab" });
   await walkThrough(db, now);
+  await seedRealRun(db);
+}
+
+/** When the real run happened: Nmap at 15:20 UTC on 18 Nov 2026, Semgrep a few minutes before it. */
+export const REAL_RUN_AT = new Date("2026-11-18T15:10:00Z");
+
+/**
+ * The third assessment: what real scanners said about a real Juice Shop, imported unedited. Only
+ * Nmap and Semgrep could run on that machine; nobody has validated anything here yet.
+ */
+async function seedRealRun(db: Db): Promise<void> {
+  const at = (minutes: number) => new Date(REAL_RUN_AT.getTime() + minutes * 60 * 1000);
+  const created = await createAssessment(
+    db,
+    {
+      name: "Juice Shop, real scan",
+      client: "Real Nmap and Semgrep output, 18 Nov 2026",
+      scope: { targets: ["127.0.0.1", "http://127.0.0.1:3000", "juice-shop"], exclusions: [], authorizedBy: DEMO_USER.sub, authorizedAt: at(0).toISOString() },
+    },
+    DEMO_USER,
+    at(0),
+    "a-juice-shop-real",
+  );
+  let row = await requireAssessment(db, created.id, DEMO_USER);
+  await setAssessmentStatus(db, row, "active", DEMO_USER, "Juice Shop 17.1.1 built from source on my own machine, on 127.0.0.1 only.", at(0));
+  row = await requireAssessment(db, created.id, DEMO_USER);
+  await setAssessmentPhase(db, row, "assessment", DEMO_USER, "Port 3000 found; the source is in scope too.", at(1));
+  row = await requireAssessment(db, created.id, DEMO_USER);
+  await runImport(db, row, { assessmentId: row.id, tool: "semgrep", content: REAL_RUN["real-run/semgrep-juice-shop.sarif"]!, filename: "lab/real-run/semgrep-juice-shop.sarif", repository: "juice-shop" }, DEMO_USER, at(2));
+  row = await requireAssessment(db, created.id, DEMO_USER);
+  await runImport(db, row, { assessmentId: row.id, tool: "nmap", content: REAL_RUN["real-run/nmap-juice-shop.xml"]!, filename: "lab/real-run/nmap-juice-shop.xml" }, DEMO_USER, at(10));
 }
 
 const HOUR = 60 * 60 * 1000;
@@ -206,7 +237,7 @@ export async function walkThrough(db: Db, now: Date): Promise<void> {
         "",
         '{"user":{}}',
         "",
-        "$ for p in /rest/products/search?q= /api/Quantitys/; do curl -si -H 'Origin: https://evil.example' \"http://127.0.0.1:3000$p\" | grep -i access-control; done",
+        "$ for p in '/rest/products/search?q=' /api/Quantitys/; do curl -si -H 'Origin: https://evil.example' \"http://127.0.0.1:3000$p\" | grep -i access-control; done",
         "Access-Control-Allow-Origin: *",
         "Access-Control-Allow-Origin: *",
       ].join("\n"),
@@ -238,8 +269,8 @@ export async function walkThrough(db: Db, now: Date): Promise<void> {
     await find(jwt),
     {
       kind: "command-output",
-      title: "npm ls in the container",
-      content: ["$ docker compose exec juice-shop npm ls jsonwebtoken", "juice-shop@17.1.1 /juice-shop", "├─┬ express-jwt@0.1.3", "│ └── jsonwebtoken@0.4.0", "└── jsonwebtoken@0.4.0"].join("\n"),
+      title: "npm ls in the Juice Shop folder",
+      content: ["$ npm ls jsonwebtoken", "juice-shop@17.1.1 ~/lab/juice-shop", "+-- express-jwt@0.1.3", "| `-- jsonwebtoken@0.1.0", "`-- jsonwebtoken@0.4.0"].join("\n"),
       redacted: true,
       capturedAt: at(4).toISOString(),
     },

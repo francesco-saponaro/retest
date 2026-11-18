@@ -64,11 +64,11 @@ export function Assessments() {
 }
 
 /** The six scanners whose output an import reads: what each one does in plain words, what it reports, and a sample of the file it writes. */
-const SCANNERS: { tool: string; does: string; reports: string; file: string; sample: string }[] = [
-  { tool: "Nmap", does: "Finds which machines and ports are open, and what software answers on them.", reports: "Hosts, open ports, services and versions; NSE script results such as vulners and SMB signing.", file: "XML (-oX)", sample: "nmap-juice-shop.xml" },
+const SCANNERS: { tool: string; does: string; reports: string; file: string; sample: string; real?: string }[] = [
+  { tool: "Nmap", does: "Finds which machines and ports are open, and what software answers on them.", reports: "Hosts, open ports, services and versions; NSE script results such as vulners and SMB signing.", file: "XML (-oX)", sample: "nmap-juice-shop.xml", real: "real-nmap-juice-shop.xml" },
   { tool: "Nuclei", does: "Runs ready-made checks against web endpoints.", reports: "Template matches on web endpoints: missing headers, CORS, exposed files, known CVEs.", file: "JSON Lines (-jsonl)", sample: "nuclei-juice-shop.jsonl" },
   { tool: "OWASP ZAP", does: "Visits a website the way a browser would and looks for weak spots.", reports: "Alerts from a baseline or active scan, with risk, confidence and the requests that triggered them.", file: "JSON report", sample: "zap-juice-shop.json" },
-  { tool: "Semgrep", does: "Reads the source code for dangerous patterns.", reports: "Rule matches in source code with the file, the line and the snippet.", file: "SARIF", sample: "semgrep-juice-shop.sarif" },
+  { tool: "Semgrep", does: "Reads the source code for dangerous patterns.", reports: "Rule matches in source code with the file, the line and the snippet.", file: "SARIF", sample: "semgrep-juice-shop.sarif", real: "real-semgrep-juice-shop.sarif" },
   { tool: "Trivy", does: "Checks the libraries inside a container image for known vulnerabilities.", reports: "Known vulnerabilities in a container image's packages, with the fixed version.", file: "JSON", sample: "trivy-juice-shop-image.json" },
   { tool: "Prowler", does: "Checks a cloud account's settings against security benchmarks.", reports: "Failed cloud configuration checks against CIS benchmarks.", file: "OCSF JSON", sample: "prowler-lab-account.ocsf.json" },
 ];
@@ -99,9 +99,19 @@ function ScannersPanel() {
                   <td className="line2 text-[13px]">
                     <span className="block">{s.does}</span>
                     <span className="block muted">{s.reports}</span>
-                    <a href={`/samples/${s.sample}`} download className="block mt-1">
-                      Download the sample file
-                    </a>
+                    <span className="block mt-1">
+                      {s.real ? (
+                        <>
+                          <a href={`/samples/${s.real}`} download>
+                            Real output
+                          </a>
+                          {" · "}
+                        </>
+                      ) : null}
+                      <a href={`/samples/${s.sample}`} download>
+                        Sample file
+                      </a>
+                    </span>
                   </td>
                   <td className="n key muted whitespace-nowrap">{s.file}</td>
                 </tr>
@@ -141,9 +151,15 @@ function Frame({ total, demo = false }: { total?: number; demo?: boolean }) {
         <h1>Assessments</h1>
         <p className="sub">{total === undefined ? "Every engagement, with the phase its work is in." : total === 0 ? "Nothing authorised yet." : `${count(total, "assessment")}, each in one of the six phases.`}</p>
         {demo ? (
-          <p className="sub">
-            Everything here is a practice lab, not a real company: OWASP Juice Shop (a web shop built to be insecure on purpose), two lab machines and a test cloud account. The findings come from the six sample files below, imported when this page loaded.
-          </p>
+          <>
+            <p className="sub">
+              "Juice Shop, real scan" is real: on 18 Nov 2026 I ran Nmap and Semgrep against OWASP Juice Shop (a web shop built to be insecure on purpose) on my own machine, and imported their output unedited.{" "}
+              <a href="https://github.com/francesco-saponaro/retest/tree/main/lab/real-run">How it was done, step by step</a>.
+            </p>
+            <p className="sub">
+              The other two are practice assessments made from sample files: written in each scanner's real format and trimmed so the tests can count every result. The two lab machines and the cloud account in them are made up.
+            </p>
+          </>
         ) : null}
       </div>
     </div>

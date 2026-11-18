@@ -1,0 +1,10 @@
+$ curl -si -H 'Origin: https://evil.example' http://127.0.0.1:3000/rest/user/whoami
+HTTP/1.1 200 OK
+Access-Control-Allow-Origin: *
+Content-Type: application/json; charset=utf-8
+
+{"user":{}}
+
+$ for p in '/rest/products/search?q=' /api/Quantitys/; do curl -si -H 'Origin: https://evil.example' "http://127.0.0.1:3000$p" | grep -i access-control; done
+Access-Control-Allow-Origin: *
+Access-Control-Allow-Origin: *
