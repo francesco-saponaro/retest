@@ -1,0 +1,1067 @@
+[
+  {
+    "message": "MFA is not enabled for root account.",
+    "metadata": {
+      "event_code": "iam_root_mfa_enabled",
+      "product": {
+        "name": "Prowler",
+        "uid": "prowler",
+        "vendor_name": "Prowler",
+        "version": "5.2.0"
+      },
+      "profiles": [
+        "cloud",
+        "datetime"
+      ],
+      "tenant_uid": "",
+      "version": "1.3.0"
+    },
+    "severity_id": 5,
+    "severity": "Critical",
+    "status": "New",
+    "status_code": "FAIL",
+    "status_detail": "MFA is not enabled for root account.",
+    "status_id": 1,
+    "unmapped": {
+      "related_url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_root-user.html",
+      "categories": [],
+      "depends_on": [],
+      "related_to": [],
+      "notes": "",
+      "compliance": {
+        "CIS-1.4": [
+          "1.5"
+        ],
+        "CIS-1.5": [
+          "1.5"
+        ],
+        "CIS-2.0": [
+          "1.5"
+        ],
+        "CIS-3.0": [
+          "1.5"
+        ],
+        "ISO27001-2013": [
+          "A.9.4"
+        ]
+      }
+    },
+    "activity_name": "Create",
+    "activity_id": 1,
+    "finding_info": {
+      "created_time": 1794163680,
+      "created_time_dt": "2026-11-08T18:48:00.000000",
+      "desc": "Ensure MFA is enabled for the root account",
+      "product_uid": "prowler",
+      "title": "Ensure MFA is enabled for the root account",
+      "types": [
+        "Software and Configuration Checks",
+        "Industry and Regulatory Standards",
+        "CIS AWS Foundations Benchmark"
+      ],
+      "uid": "prowler-aws-iam_root_mfa_enabled-123456789012-global-<root_account>"
+    },
+    "resources": [
+      {
+        "cloud_partition": "aws",
+        "region": "global",
+        "data": {
+          "details": "",
+          "metadata": {}
+        },
+        "group": {
+          "name": "iam"
+        },
+        "labels": [],
+        "name": "<root_account>",
+        "type": "AwsIamUser",
+        "uid": "arn:aws:iam::123456789012:root"
+      }
+    ],
+    "category_name": "Findings",
+    "category_uid": 2,
+    "class_name": "Detection Finding",
+    "class_uid": 2004,
+    "cloud": {
+      "account": {
+        "name": "retest-lab",
+        "type": "AWS Account",
+        "type_id": 10,
+        "uid": "123456789012",
+        "labels": []
+      },
+      "org": {
+        "name": "",
+        "uid": ""
+      },
+      "provider": "aws",
+      "region": "global"
+    },
+    "remediation": {
+      "desc": "Using IAM console navigate to Dashboard and expand Activate MFA on your root account.",
+      "references": [
+        "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_root-user.html#id_root-user_manage_mfa",
+        "https://docs.prowler.com/checks/aws/iam-policies/iam_9#cli-command"
+      ]
+    },
+    "risk_details": "The root account is the most privileged user in an account. MFA adds an extra layer of protection on top of a user name and password. With MFA enabled when a user signs in to an AWS website they will be prompted for their user name and password as well as for an authentication code from their AWS MFA device.",
+    "time": 1794163680,
+    "time_dt": "2026-11-08T18:48:00.000000",
+    "type_uid": 200401,
+    "type_name": "Detection Finding: Create"
+  },
+  {
+    "message": "User lab-admin has Console Password enabled but MFA disabled.",
+    "metadata": {
+      "event_code": "iam_user_mfa_enabled_console_access",
+      "product": {
+        "name": "Prowler",
+        "uid": "prowler",
+        "vendor_name": "Prowler",
+        "version": "5.2.0"
+      },
+      "profiles": [
+        "cloud",
+        "datetime"
+      ],
+      "tenant_uid": "",
+      "version": "1.3.0"
+    },
+    "severity_id": 4,
+    "severity": "High",
+    "status": "New",
+    "status_code": "FAIL",
+    "status_detail": "User lab-admin has Console Password enabled but MFA disabled.",
+    "status_id": 1,
+    "unmapped": {
+      "related_url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_mfa.html",
+      "categories": [],
+      "depends_on": [],
+      "related_to": [],
+      "notes": "",
+      "compliance": {
+        "CIS-1.4": [
+          "1.10"
+        ],
+        "CIS-2.0": [
+          "1.10"
+        ],
+        "CIS-3.0": [
+          "1.10"
+        ]
+      }
+    },
+    "activity_name": "Create",
+    "activity_id": 1,
+    "finding_info": {
+      "created_time": 1794163680,
+      "created_time_dt": "2026-11-08T18:48:00.000000",
+      "desc": "Ensure multi-factor authentication (MFA) is enabled for all IAM users that have a console password.",
+      "product_uid": "prowler",
+      "title": "Ensure multi-factor authentication (MFA) is enabled for all IAM users that have a console password.",
+      "types": [
+        "Software and Configuration Checks",
+        "Industry and Regulatory Standards",
+        "CIS AWS Foundations Benchmark"
+      ],
+      "uid": "prowler-aws-iam_user_mfa_enabled_console_access-123456789012-global-lab-admin"
+    },
+    "resources": [
+      {
+        "cloud_partition": "aws",
+        "region": "global",
+        "data": {
+          "details": "",
+          "metadata": {}
+        },
+        "group": {
+          "name": "iam"
+        },
+        "labels": [],
+        "name": "lab-admin",
+        "type": "AwsIamUser",
+        "uid": "arn:aws:iam::123456789012:user/lab-admin"
+      }
+    ],
+    "category_name": "Findings",
+    "category_uid": 2,
+    "class_name": "Detection Finding",
+    "class_uid": 2004,
+    "cloud": {
+      "account": {
+        "name": "retest-lab",
+        "type": "AWS Account",
+        "type_id": 10,
+        "uid": "123456789012",
+        "labels": []
+      },
+      "org": {
+        "name": "",
+        "uid": ""
+      },
+      "provider": "aws",
+      "region": "global"
+    },
+    "remediation": {
+      "desc": "Enable MFA for users accounts. MFA is a simple best practice that adds an extra layer of protection on top of your user name and password.",
+      "references": [
+        "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_mfa_enable_virtual.html",
+        "aws iam enable-mfa-device --user-name <user_name> --serial-number <serial_number> --authentication-code1 <code1> --authentication-code2 <code2>"
+      ]
+    },
+    "risk_details": "Multi-Factor Authentication (MFA) adds an extra layer of authentication assurance beyond traditional credentials. With MFA enabled, when a user signs in to the AWS Console, they will be prompted for their user name and password as well as for an authentication code from their physical or virtual MFA token.",
+    "time": 1794163680,
+    "time_dt": "2026-11-08T18:48:00.000000",
+    "type_uid": 200401,
+    "type_name": "Detection Finding: Create"
+  },
+  {
+    "message": "IAM password policy requires minimum length of 14 characters.",
+    "metadata": {
+      "event_code": "iam_password_policy_minimum_length_14",
+      "product": {
+        "name": "Prowler",
+        "uid": "prowler",
+        "vendor_name": "Prowler",
+        "version": "5.2.0"
+      },
+      "profiles": [
+        "cloud",
+        "datetime"
+      ],
+      "tenant_uid": "",
+      "version": "1.3.0"
+    },
+    "severity_id": 3,
+    "severity": "Medium",
+    "status": "New",
+    "status_code": "PASS",
+    "status_detail": "IAM password policy requires minimum length of 14 characters.",
+    "status_id": 1,
+    "unmapped": {
+      "related_url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_passwords_account-policy.html",
+      "categories": [],
+      "depends_on": [],
+      "related_to": [],
+      "notes": "",
+      "compliance": {
+        "CIS-1.4": [
+          "1.8"
+        ],
+        "CIS-2.0": [
+          "1.8"
+        ]
+      }
+    },
+    "activity_name": "Create",
+    "activity_id": 1,
+    "finding_info": {
+      "created_time": 1794163680,
+      "created_time_dt": "2026-11-08T18:48:00.000000",
+      "desc": "Ensure IAM password policy requires minimum length of 14 or greater",
+      "product_uid": "prowler",
+      "title": "Ensure IAM password policy requires minimum length of 14 or greater",
+      "types": [
+        "Software and Configuration Checks",
+        "Industry and Regulatory Standards",
+        "CIS AWS Foundations Benchmark"
+      ],
+      "uid": "prowler-aws-iam_password_policy_minimum_length_14-123456789012-global-password_policy"
+    },
+    "resources": [
+      {
+        "cloud_partition": "aws",
+        "region": "global",
+        "data": {
+          "details": "",
+          "metadata": {}
+        },
+        "group": {
+          "name": "iam"
+        },
+        "labels": [],
+        "name": "password_policy",
+        "type": "AwsIamPasswordPolicy",
+        "uid": "arn:aws:iam::123456789012:password-policy"
+      }
+    ],
+    "category_name": "Findings",
+    "category_uid": 2,
+    "class_name": "Detection Finding",
+    "class_uid": 2004,
+    "cloud": {
+      "account": {
+        "name": "retest-lab",
+        "type": "AWS Account",
+        "type_id": 10,
+        "uid": "123456789012",
+        "labels": []
+      },
+      "org": {
+        "name": "",
+        "uid": ""
+      },
+      "provider": "aws",
+      "region": "global"
+    },
+    "remediation": {
+      "desc": "Ensure IAM password policy requires minimum length of 14 or greater.",
+      "references": [
+        "aws iam update-account-password-policy --minimum-password-length 14"
+      ]
+    },
+    "risk_details": "Password policies are, in part, used to enforce password complexity requirements. IAM password policies can be used to ensure password are at least a given length.",
+    "time": 1794163680,
+    "time_dt": "2026-11-08T18:48:00.000000",
+    "type_uid": 200401,
+    "type_name": "Detection Finding: Create"
+  },
+  {
+    "message": "S3 Bucket juice-shop-uploads has public access due to bucket ACL.",
+    "metadata": {
+      "event_code": "s3_bucket_public_access",
+      "product": {
+        "name": "Prowler",
+        "uid": "prowler",
+        "vendor_name": "Prowler",
+        "version": "5.2.0"
+      },
+      "profiles": [
+        "cloud",
+        "datetime"
+      ],
+      "tenant_uid": "",
+      "version": "1.3.0"
+    },
+    "severity_id": 5,
+    "severity": "Critical",
+    "status": "New",
+    "status_code": "FAIL",
+    "status_detail": "S3 Bucket juice-shop-uploads has public access due to bucket ACL.",
+    "status_id": 1,
+    "unmapped": {
+      "related_url": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-control-block-public-access.html",
+      "categories": [
+        "internet-exposed"
+      ],
+      "depends_on": [],
+      "related_to": [],
+      "notes": "",
+      "compliance": {
+        "AWS-Foundational-Security-Best-Practices": [
+          "s3"
+        ],
+        "ISO27001-2013": [
+          "A.13.1"
+        ]
+      }
+    },
+    "activity_name": "Create",
+    "activity_id": 1,
+    "finding_info": {
+      "created_time": 1794163680,
+      "created_time_dt": "2026-11-08T18:48:00.000000",
+      "desc": "Ensure there are no S3 buckets open to Everyone or Any AWS user.",
+      "product_uid": "prowler",
+      "title": "Ensure there are no S3 buckets open to Everyone or Any AWS user.",
+      "types": [
+        "Software and Configuration Checks",
+        "AWS Security Best Practices"
+      ],
+      "uid": "prowler-aws-s3_bucket_public_access-123456789012-eu-west-3-juice-shop-uploads"
+    },
+    "resources": [
+      {
+        "cloud_partition": "aws",
+        "region": "eu-west-3",
+        "data": {
+          "details": "",
+          "metadata": {
+            "region": "eu-west-3",
+            "acl_grantees": [
+              {
+                "uri": "http://acs.amazonaws.com/groups/global/AllUsers",
+                "permission": "READ"
+              }
+            ]
+          }
+        },
+        "group": {
+          "name": "s3"
+        },
+        "labels": [],
+        "name": "juice-shop-uploads",
+        "type": "AwsS3Bucket",
+        "uid": "arn:aws:s3:::juice-shop-uploads"
+      }
+    ],
+    "category_name": "Findings",
+    "category_uid": 2,
+    "class_name": "Detection Finding",
+    "class_uid": 2004,
+    "cloud": {
+      "account": {
+        "name": "retest-lab",
+        "type": "AWS Account",
+        "type_id": 10,
+        "uid": "123456789012",
+        "labels": []
+      },
+      "org": {
+        "name": "",
+        "uid": ""
+      },
+      "provider": "aws",
+      "region": "eu-west-3"
+    },
+    "remediation": {
+      "desc": "Ensure proper bucket ACL and policy are in place to limit public access.",
+      "references": [
+        "https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-control-block-public-access.html",
+        "aws s3api put-bucket-acl --bucket <bucket_name> --acl private"
+      ]
+    },
+    "risk_details": "Even if you enable all possible bucket ACL options available in the Amazon S3 console the ACL alone does not allow everyone to download objects from your bucket. Depending on which option you select any user could perform some actions.",
+    "time": 1794163680,
+    "time_dt": "2026-11-08T18:48:00.000000",
+    "type_uid": 200401,
+    "type_name": "Detection Finding: Create"
+  },
+  {
+    "message": "Block Public Access is not configured for the S3 Bucket juice-shop-uploads.",
+    "metadata": {
+      "event_code": "s3_bucket_level_public_access_block",
+      "product": {
+        "name": "Prowler",
+        "uid": "prowler",
+        "vendor_name": "Prowler",
+        "version": "5.2.0"
+      },
+      "profiles": [
+        "cloud",
+        "datetime"
+      ],
+      "tenant_uid": "",
+      "version": "1.3.0"
+    },
+    "severity_id": 4,
+    "severity": "High",
+    "status": "New",
+    "status_code": "FAIL",
+    "status_detail": "Block Public Access is not configured for the S3 Bucket juice-shop-uploads.",
+    "status_id": 1,
+    "unmapped": {
+      "related_url": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-control-block-public-access.html",
+      "categories": [],
+      "depends_on": [],
+      "related_to": [],
+      "notes": "",
+      "compliance": {
+        "CIS-1.4": [
+          "2.1.5"
+        ],
+        "CIS-2.0": [
+          "2.1.4"
+        ],
+        "CIS-3.0": [
+          "2.1.4"
+        ]
+      }
+    },
+    "activity_name": "Create",
+    "activity_id": 1,
+    "finding_info": {
+      "created_time": 1794163680,
+      "created_time_dt": "2026-11-08T18:48:00.000000",
+      "desc": "Check S3 Bucket Level Public Access Block.",
+      "product_uid": "prowler",
+      "title": "Check S3 Bucket Level Public Access Block.",
+      "types": [
+        "Software and Configuration Checks",
+        "Industry and Regulatory Standards",
+        "CIS AWS Foundations Benchmark"
+      ],
+      "uid": "prowler-aws-s3_bucket_level_public_access_block-123456789012-eu-west-3-juice-shop-uploads"
+    },
+    "resources": [
+      {
+        "cloud_partition": "aws",
+        "region": "eu-west-3",
+        "data": {
+          "details": "",
+          "metadata": {}
+        },
+        "group": {
+          "name": "s3"
+        },
+        "labels": [],
+        "name": "juice-shop-uploads",
+        "type": "AwsS3Bucket",
+        "uid": "arn:aws:s3:::juice-shop-uploads"
+      }
+    ],
+    "category_name": "Findings",
+    "category_uid": 2,
+    "class_name": "Detection Finding",
+    "class_uid": 2004,
+    "cloud": {
+      "account": {
+        "name": "retest-lab",
+        "type": "AWS Account",
+        "type_id": 10,
+        "uid": "123456789012",
+        "labels": []
+      },
+      "org": {
+        "name": "",
+        "uid": ""
+      },
+      "provider": "aws",
+      "region": "eu-west-3"
+    },
+    "remediation": {
+      "desc": "You can enable Public Access Block at the bucket level to prevent the exposure of your data stored in S3.",
+      "references": [
+        "https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-control-block-public-access.html",
+        "aws s3api put-public-access-block --bucket <bucket_name> --public-access-block-configuration BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true"
+      ]
+    },
+    "risk_details": "Public access policies may be applied to sensitive data buckets.",
+    "time": 1794163680,
+    "time_dt": "2026-11-08T18:48:00.000000",
+    "type_uid": 200401,
+    "type_name": "Detection Finding: Create"
+  },
+  {
+    "message": "S3 Bucket retest-lab-cloudtrail is not public.",
+    "metadata": {
+      "event_code": "s3_bucket_public_access",
+      "product": {
+        "name": "Prowler",
+        "uid": "prowler",
+        "vendor_name": "Prowler",
+        "version": "5.2.0"
+      },
+      "profiles": [
+        "cloud",
+        "datetime"
+      ],
+      "tenant_uid": "",
+      "version": "1.3.0"
+    },
+    "severity_id": 5,
+    "severity": "Critical",
+    "status": "New",
+    "status_code": "PASS",
+    "status_detail": "S3 Bucket retest-lab-cloudtrail is not public.",
+    "status_id": 1,
+    "unmapped": {
+      "related_url": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-control-block-public-access.html",
+      "categories": [
+        "internet-exposed"
+      ],
+      "depends_on": [],
+      "related_to": [],
+      "notes": "",
+      "compliance": {
+        "AWS-Foundational-Security-Best-Practices": [
+          "s3"
+        ]
+      }
+    },
+    "activity_name": "Create",
+    "activity_id": 1,
+    "finding_info": {
+      "created_time": 1794163680,
+      "created_time_dt": "2026-11-08T18:48:00.000000",
+      "desc": "Ensure there are no S3 buckets open to Everyone or Any AWS user.",
+      "product_uid": "prowler",
+      "title": "Ensure there are no S3 buckets open to Everyone or Any AWS user.",
+      "types": [
+        "Software and Configuration Checks",
+        "AWS Security Best Practices"
+      ],
+      "uid": "prowler-aws-s3_bucket_public_access-123456789012-eu-west-3-retest-lab-cloudtrail"
+    },
+    "resources": [
+      {
+        "cloud_partition": "aws",
+        "region": "eu-west-3",
+        "data": {
+          "details": "",
+          "metadata": {}
+        },
+        "group": {
+          "name": "s3"
+        },
+        "labels": [],
+        "name": "retest-lab-cloudtrail",
+        "type": "AwsS3Bucket",
+        "uid": "arn:aws:s3:::retest-lab-cloudtrail"
+      }
+    ],
+    "category_name": "Findings",
+    "category_uid": 2,
+    "class_name": "Detection Finding",
+    "class_uid": 2004,
+    "cloud": {
+      "account": {
+        "name": "retest-lab",
+        "type": "AWS Account",
+        "type_id": 10,
+        "uid": "123456789012",
+        "labels": []
+      },
+      "org": {
+        "name": "",
+        "uid": ""
+      },
+      "provider": "aws",
+      "region": "eu-west-3"
+    },
+    "remediation": {
+      "desc": "Ensure proper bucket ACL and policy are in place to limit public access.",
+      "references": [
+        "https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-control-block-public-access.html"
+      ]
+    },
+    "risk_details": "Even if you enable all possible bucket ACL options available in the Amazon S3 console the ACL alone does not allow everyone to download objects from your bucket. Depending on which option you select any user could perform some actions.",
+    "time": 1794163680,
+    "time_dt": "2026-11-08T18:48:00.000000",
+    "type_uid": 200401,
+    "type_name": "Detection Finding: Create"
+  },
+  {
+    "message": "Security group lab-web (sg-0f3a9c1d2e4b5a6c7) has SSH port 22 open to the Internet.",
+    "metadata": {
+      "event_code": "ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_22",
+      "product": {
+        "name": "Prowler",
+        "uid": "prowler",
+        "vendor_name": "Prowler",
+        "version": "5.2.0"
+      },
+      "profiles": [
+        "cloud",
+        "datetime"
+      ],
+      "tenant_uid": "",
+      "version": "1.3.0"
+    },
+    "severity_id": 4,
+    "severity": "High",
+    "status": "New",
+    "status_code": "FAIL",
+    "status_detail": "Security group lab-web (sg-0f3a9c1d2e4b5a6c7) has SSH port 22 open to the Internet.",
+    "status_id": 1,
+    "unmapped": {
+      "related_url": "https://docs.aws.amazon.com/vpc/latest/userguide/VPC_SecurityGroups.html",
+      "categories": [
+        "internet-exposed"
+      ],
+      "depends_on": [],
+      "related_to": [],
+      "notes": "",
+      "compliance": {
+        "CIS-1.4": [
+          "5.2"
+        ],
+        "CIS-2.0": [
+          "5.2"
+        ],
+        "CIS-3.0": [
+          "5.2"
+        ]
+      }
+    },
+    "activity_name": "Create",
+    "activity_id": 1,
+    "finding_info": {
+      "created_time": 1794163680,
+      "created_time_dt": "2026-11-08T18:48:00.000000",
+      "desc": "Ensure no security groups allow ingress from 0.0.0.0/0 or ::/0 to SSH port 22.",
+      "product_uid": "prowler",
+      "title": "Ensure no security groups allow ingress from 0.0.0.0/0 or ::/0 to SSH port 22.",
+      "types": [
+        "Software and Configuration Checks",
+        "Industry and Regulatory Standards",
+        "CIS AWS Foundations Benchmark"
+      ],
+      "uid": "prowler-aws-ec2_securitygroup_allow_ingress_from_internet_to_tcp_port_22-123456789012-eu-west-3-lab-web"
+    },
+    "resources": [
+      {
+        "cloud_partition": "aws",
+        "region": "eu-west-3",
+        "data": {
+          "details": "",
+          "metadata": {
+            "GroupId": "sg-0f3a9c1d2e4b5a6c7",
+            "VpcId": "vpc-0a1b2c3d4e5f6a7b8",
+            "IpPermissions": [
+              {
+                "FromPort": 22,
+                "ToPort": 22,
+                "IpProtocol": "tcp",
+                "IpRanges": [
+                  {
+                    "CidrIp": "0.0.0.0/0"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "group": {
+          "name": "ec2"
+        },
+        "labels": [],
+        "name": "lab-web",
+        "type": "AwsEc2SecurityGroup",
+        "uid": "arn:aws:ec2:eu-west-3:123456789012:security-group/sg-0f3a9c1d2e4b5a6c7"
+      }
+    ],
+    "category_name": "Findings",
+    "category_uid": 2,
+    "class_name": "Detection Finding",
+    "class_uid": 2004,
+    "cloud": {
+      "account": {
+        "name": "retest-lab",
+        "type": "AWS Account",
+        "type_id": 10,
+        "uid": "123456789012",
+        "labels": []
+      },
+      "org": {
+        "name": "",
+        "uid": ""
+      },
+      "provider": "aws",
+      "region": "eu-west-3"
+    },
+    "remediation": {
+      "desc": "Apply Zero Trust approach. Implement a process to scan and remediate unrestricted or overly permissive security groups. Recommended best practices is to narrow the definition for the minimum ports required.",
+      "references": [
+        "https://docs.aws.amazon.com/vpc/latest/userguide/VPC_SecurityGroups.html",
+        "aws ec2 revoke-security-group-ingress --group-id <sg_id> --protocol tcp --port 22 --cidr 0.0.0.0/0"
+      ]
+    },
+    "risk_details": "If Security groups are not properly configured the attack surface is increased.",
+    "time": 1794163680,
+    "time_dt": "2026-11-08T18:48:00.000000",
+    "type_uid": 200401,
+    "type_name": "Detection Finding: Create"
+  },
+  {
+    "message": "No CloudTrail trails enabled and logging were found.",
+    "metadata": {
+      "event_code": "cloudtrail_multi_region_enabled",
+      "product": {
+        "name": "Prowler",
+        "uid": "prowler",
+        "vendor_name": "Prowler",
+        "version": "5.2.0"
+      },
+      "profiles": [
+        "cloud",
+        "datetime"
+      ],
+      "tenant_uid": "",
+      "version": "1.3.0"
+    },
+    "severity_id": 4,
+    "severity": "High",
+    "status": "New",
+    "status_code": "FAIL",
+    "status_detail": "No CloudTrail trails enabled and logging were found.",
+    "status_id": 1,
+    "unmapped": {
+      "related_url": "https://docs.aws.amazon.com/awscloudtrail/latest/userguide/receive-cloudtrail-log-files-from-multiple-regions.html",
+      "categories": [],
+      "depends_on": [],
+      "related_to": [],
+      "notes": "",
+      "compliance": {
+        "CIS-1.4": [
+          "3.1"
+        ],
+        "CIS-2.0": [
+          "3.1"
+        ],
+        "CIS-3.0": [
+          "3.1"
+        ]
+      }
+    },
+    "activity_name": "Create",
+    "activity_id": 1,
+    "finding_info": {
+      "created_time": 1794163680,
+      "created_time_dt": "2026-11-08T18:48:00.000000",
+      "desc": "Ensure CloudTrail is enabled in all regions",
+      "product_uid": "prowler",
+      "title": "Ensure CloudTrail is enabled in all regions",
+      "types": [
+        "Software and Configuration Checks",
+        "Industry and Regulatory Standards",
+        "CIS AWS Foundations Benchmark"
+      ],
+      "uid": "prowler-aws-cloudtrail_multi_region_enabled-123456789012-eu-west-3-123456789012"
+    },
+    "resources": [
+      {
+        "cloud_partition": "aws",
+        "region": "eu-west-3",
+        "data": {
+          "details": "",
+          "metadata": {}
+        },
+        "group": {
+          "name": "cloudtrail"
+        },
+        "labels": [],
+        "name": "123456789012",
+        "type": "AwsCloudTrailTrail",
+        "uid": "arn:aws:cloudtrail:eu-west-3:123456789012:trail"
+      }
+    ],
+    "category_name": "Findings",
+    "category_uid": 2,
+    "class_name": "Detection Finding",
+    "class_uid": 2004,
+    "cloud": {
+      "account": {
+        "name": "retest-lab",
+        "type": "AWS Account",
+        "type_id": 10,
+        "uid": "123456789012",
+        "labels": []
+      },
+      "org": {
+        "name": "",
+        "uid": ""
+      },
+      "provider": "aws",
+      "region": "eu-west-3"
+    },
+    "remediation": {
+      "desc": "Ensure Logging is set to ON on all regions (even if they are not being used at the moment).",
+      "references": [
+        "https://docs.aws.amazon.com/awscloudtrail/latest/userguide/receive-cloudtrail-log-files-from-multiple-regions.html",
+        "aws cloudtrail create-trail --name <trail_name> --bucket-name <s3_bucket_for_cloudtrail> --is-multi-region-trail"
+      ]
+    },
+    "risk_details": "AWS CloudTrail is a web service that records AWS API calls for your account and delivers log files to you. The recorded information includes the identity of the API caller, the time of the API call, the source IP address of the API caller, the request parameters, and the response elements returned by the AWS service.",
+    "time": 1794163680,
+    "time_dt": "2026-11-08T18:48:00.000000",
+    "type_uid": 200401,
+    "type_name": "Detection Finding: Create"
+  },
+  {
+    "message": "Root user in the account was last accessed 2 days ago.",
+    "metadata": {
+      "event_code": "iam_avoid_root_usage",
+      "product": {
+        "name": "Prowler",
+        "uid": "prowler",
+        "vendor_name": "Prowler",
+        "version": "5.2.0"
+      },
+      "profiles": [
+        "cloud",
+        "datetime"
+      ],
+      "tenant_uid": "",
+      "version": "1.3.0"
+    },
+    "severity_id": 4,
+    "severity": "High",
+    "status": "New",
+    "status_code": "FAIL",
+    "status_detail": "Root user in the account was last accessed 2 days ago.",
+    "status_id": 1,
+    "unmapped": {
+      "related_url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_root-user.html",
+      "categories": [],
+      "depends_on": [],
+      "related_to": [],
+      "notes": "",
+      "compliance": {
+        "CIS-1.4": [
+          "1.7"
+        ],
+        "CIS-2.0": [
+          "1.7"
+        ],
+        "CIS-3.0": [
+          "1.7"
+        ]
+      }
+    },
+    "activity_name": "Create",
+    "activity_id": 1,
+    "finding_info": {
+      "created_time": 1794163680,
+      "created_time_dt": "2026-11-08T18:48:00.000000",
+      "desc": "Avoid the use of the root accounts",
+      "product_uid": "prowler",
+      "title": "Avoid the use of the root accounts",
+      "types": [
+        "Software and Configuration Checks",
+        "Industry and Regulatory Standards",
+        "CIS AWS Foundations Benchmark"
+      ],
+      "uid": "prowler-aws-iam_avoid_root_usage-123456789012-global-<root_account>"
+    },
+    "resources": [
+      {
+        "cloud_partition": "aws",
+        "region": "global",
+        "data": {
+          "details": "",
+          "metadata": {}
+        },
+        "group": {
+          "name": "iam"
+        },
+        "labels": [],
+        "name": "<root_account>",
+        "type": "AwsIamUser",
+        "uid": "arn:aws:iam::123456789012:root"
+      }
+    ],
+    "category_name": "Findings",
+    "category_uid": 2,
+    "class_name": "Detection Finding",
+    "class_uid": 2004,
+    "cloud": {
+      "account": {
+        "name": "retest-lab",
+        "type": "AWS Account",
+        "type_id": 10,
+        "uid": "123456789012",
+        "labels": []
+      },
+      "org": {
+        "name": "",
+        "uid": ""
+      },
+      "provider": "aws",
+      "region": "global"
+    },
+    "remediation": {
+      "desc": "Follow the remediation instructions of the Ensure IAM policies are attached only to groups or roles recommendation.",
+      "references": [
+        "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_root-user.html",
+        "https://docs.prowler.com/checks/aws/iam-policies/iam_1#cli-command"
+      ]
+    },
+    "risk_details": "The root account has unrestricted access to all resources in the AWS account. It is highly recommended that the use of this account be avoided.",
+    "time": 1794163680,
+    "time_dt": "2026-11-08T18:48:00.000000",
+    "type_uid": 200401,
+    "type_name": "Detection Finding: Create"
+  },
+  {
+    "message": "Manual check: Ensure a support role has been created to manage incidents with AWS Support.",
+    "metadata": {
+      "event_code": "iam_securityaudit_role_created",
+      "product": {
+        "name": "Prowler",
+        "uid": "prowler",
+        "vendor_name": "Prowler",
+        "version": "5.2.0"
+      },
+      "profiles": [
+        "cloud",
+        "datetime"
+      ],
+      "tenant_uid": "",
+      "version": "1.3.0"
+    },
+    "severity_id": 2,
+    "severity": "Low",
+    "status": "New",
+    "status_code": "MANUAL",
+    "status_detail": "Manual check: Ensure a support role has been created to manage incidents with AWS Support.",
+    "status_id": 1,
+    "unmapped": {
+      "related_url": "https://docs.aws.amazon.com/awssupport/latest/user/accessing-support.html",
+      "categories": [],
+      "depends_on": [],
+      "related_to": [],
+      "notes": "",
+      "compliance": {
+        "CIS-1.4": [
+          "1.17"
+        ],
+        "CIS-2.0": [
+          "1.17"
+        ]
+      }
+    },
+    "activity_name": "Create",
+    "activity_id": 1,
+    "finding_info": {
+      "created_time": 1794163680,
+      "created_time_dt": "2026-11-08T18:48:00.000000",
+      "desc": "Ensure a support role has been created to manage incidents with AWS Support",
+      "product_uid": "prowler",
+      "title": "Ensure a support role has been created to manage incidents with AWS Support",
+      "types": [
+        "Software and Configuration Checks",
+        "Industry and Regulatory Standards",
+        "CIS AWS Foundations Benchmark"
+      ],
+      "uid": "prowler-aws-iam_securityaudit_role_created-123456789012-global-123456789012"
+    },
+    "resources": [
+      {
+        "cloud_partition": "aws",
+        "region": "global",
+        "data": {
+          "details": "",
+          "metadata": {}
+        },
+        "group": {
+          "name": "iam"
+        },
+        "labels": [],
+        "name": "123456789012",
+        "type": "AwsIamRole",
+        "uid": "arn:aws:iam::123456789012:role"
+      }
+    ],
+    "category_name": "Findings",
+    "category_uid": 2,
+    "class_name": "Detection Finding",
+    "class_uid": 2004,
+    "cloud": {
+      "account": {
+        "name": "retest-lab",
+        "type": "AWS Account",
+        "type_id": 10,
+        "uid": "123456789012",
+        "labels": []
+      },
+      "org": {
+        "name": "",
+        "uid": ""
+      },
+      "provider": "aws",
+      "region": "global"
+    },
+    "remediation": {
+      "desc": "Create an IAM role for managing incidents with AWS Support and attach the AWSSupportAccess policy.",
+      "references": [
+        "https://docs.aws.amazon.com/awssupport/latest/user/accessing-support.html"
+      ]
+    },
+    "risk_details": "AWS provides a support center that can be used for incident notification and response, as well as technical support and customer services.",
+    "time": 1794163680,
+    "time_dt": "2026-11-08T18:48:00.000000",
+    "type_uid": 200401,
+    "type_name": "Detection Finding: Create"
+  }
+]

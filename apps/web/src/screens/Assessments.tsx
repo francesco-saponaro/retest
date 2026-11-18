@@ -13,7 +13,7 @@ export function Assessments() {
   const { data: items } = useSuspenseQuery(assessmentsQuery(client));
   return (
     <>
-      <Frame total={items.length} />
+      <Frame total={items.length} demo={client.mode === "demo"} />
       <div className="with-rail">
       <div className="grid gap-6">
       <div className="panel">
@@ -63,14 +63,14 @@ export function Assessments() {
   );
 }
 
-/** The six scanners whose output an import reads, with what each one reports and the file it writes. */
-const SCANNERS: { tool: string; reports: string; file: string }[] = [
-  { tool: "Nmap", reports: "Hosts, open ports, services and versions; NSE script results such as vulners and SMB signing.", file: "XML (-oX)" },
-  { tool: "Nuclei", reports: "Template matches on web endpoints: missing headers, CORS, exposed files, known CVEs.", file: "JSON Lines (-jsonl)" },
-  { tool: "OWASP ZAP", reports: "Alerts from a baseline or active scan, with risk, confidence and the requests that triggered them.", file: "JSON report" },
-  { tool: "Semgrep", reports: "Rule matches in source code with the file, the line and the snippet.", file: "SARIF" },
-  { tool: "Trivy", reports: "Known vulnerabilities in a container image's packages, with the fixed version.", file: "JSON" },
-  { tool: "Prowler", reports: "Failed cloud configuration checks against CIS benchmarks.", file: "OCSF JSON" },
+/** The six scanners whose output an import reads: what each one does in plain words, what it reports, and a sample of the file it writes. */
+const SCANNERS: { tool: string; does: string; reports: string; file: string; sample: string }[] = [
+  { tool: "Nmap", does: "Finds which machines and ports are open, and what software answers on them.", reports: "Hosts, open ports, services and versions; NSE script results such as vulners and SMB signing.", file: "XML (-oX)", sample: "nmap-juice-shop.xml" },
+  { tool: "Nuclei", does: "Runs ready-made checks against web endpoints.", reports: "Template matches on web endpoints: missing headers, CORS, exposed files, known CVEs.", file: "JSON Lines (-jsonl)", sample: "nuclei-juice-shop.jsonl" },
+  { tool: "OWASP ZAP", does: "Visits a website the way a browser would and looks for weak spots.", reports: "Alerts from a baseline or active scan, with risk, confidence and the requests that triggered them.", file: "JSON report", sample: "zap-juice-shop.json" },
+  { tool: "Semgrep", does: "Reads the source code for dangerous patterns.", reports: "Rule matches in source code with the file, the line and the snippet.", file: "SARIF", sample: "semgrep-juice-shop.sarif" },
+  { tool: "Trivy", does: "Checks the libraries inside a container image for known vulnerabilities.", reports: "Known vulnerabilities in a container image's packages, with the fixed version.", file: "JSON", sample: "trivy-juice-shop-image.json" },
+  { tool: "Prowler", does: "Checks a cloud account's settings against security benchmarks.", reports: "Failed cloud configuration checks against CIS benchmarks.", file: "OCSF JSON", sample: "prowler-lab-account.ocsf.json" },
 ];
 
 function ScannersPanel() {
@@ -88,7 +88,7 @@ function ScannersPanel() {
             <thead>
               <tr>
                 <th>Scanner</th>
-                <th>Reports</th>
+                <th>What it does, and what it reports</th>
                 <th className="n">File</th>
               </tr>
             </thead>
@@ -96,7 +96,13 @@ function ScannersPanel() {
               {SCANNERS.map((s) => (
                 <tr key={s.tool}>
                   <td className="id whitespace-nowrap">{s.tool}</td>
-                  <td className="line2 text-[13px]">{s.reports}</td>
+                  <td className="line2 text-[13px]">
+                    <span className="block">{s.does}</span>
+                    <span className="block muted">{s.reports}</span>
+                    <a href={`/samples/${s.sample}`} download className="block mt-1">
+                      Download the sample file
+                    </a>
+                  </td>
                   <td className="n key muted whitespace-nowrap">{s.file}</td>
                 </tr>
               ))}
@@ -128,12 +134,17 @@ function PhasesRail() {
   );
 }
 
-function Frame({ total }: { total?: number }) {
+function Frame({ total, demo = false }: { total?: number; demo?: boolean }) {
   return (
     <div className="title-row">
       <div>
         <h1>Assessments</h1>
         <p className="sub">{total === undefined ? "Every engagement, with the phase its work is in." : total === 0 ? "Nothing authorised yet." : `${count(total, "assessment")}, each in one of the six phases.`}</p>
+        {demo ? (
+          <p className="sub">
+            Everything here is a practice lab, not a real company: OWASP Juice Shop (a web shop built to be insecure on purpose), two lab machines and a test cloud account. The findings come from the six sample files below, imported when this page loaded.
+          </p>
+        ) : null}
       </div>
     </div>
   );

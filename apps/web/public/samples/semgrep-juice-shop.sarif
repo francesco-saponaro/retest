@@ -1,0 +1,387 @@
+{
+  "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json",
+  "runs": [
+    {
+      "invocations": [
+        {
+          "executionSuccessful": true,
+          "toolExecutionNotifications": []
+        }
+      ],
+      "results": [
+        {
+          "fingerprints": {
+            "matchBasedId/v1": "4f0c2b9d8a1e6f3c7b5d2a9e1c8f4b6d0a3e7c9f2b5d8a1e4c7f0b3d6a9e2c5f_0"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "routes/login.ts",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 72,
+                  "endLine": 36,
+                  "snippet": {
+                    "text": "    models.sequelize.query(`SELECT * FROM Users WHERE email = '${req.body.email || ''}' AND password = '${security.hash(req.body.password || '')}' AND deletedAt IS NULL`, { model: UserModel, plain: true })"
+                  },
+                  "startColumn": 5,
+                  "startLine": 34
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Detected a sequelize statement that is tainted by user-input. This could lead to SQL injection if the variable is user-controlled and is not properly sanitized. In order to prevent SQL injection, it is recommended to use parameterized queries or prepared statements."
+          },
+          "properties": {},
+          "ruleId": "javascript.sequelize.security.audit.sequelize-injection-express.express-sequelize-injection"
+        },
+        {
+          "fingerprints": {
+            "matchBasedId/v1": "4f0c2b9d8a1e6f3c7b5d2a9e1c8f4b6d0a3e7c9f2b5d8a1e4c7f0b3d6a9e2c5f_1"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "routes/search.ts",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 164,
+                  "endLine": 23,
+                  "snippet": {
+                    "text": "    models.sequelize.query(`SELECT * FROM Products WHERE ((name LIKE '%${criteria}%' OR description LIKE '%${criteria}%') AND deletedAt IS NULL) ORDER BY name`)"
+                  },
+                  "startColumn": 5,
+                  "startLine": 23
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Detected a sequelize statement that is tainted by user-input. This could lead to SQL injection if the variable is user-controlled and is not properly sanitized. In order to prevent SQL injection, it is recommended to use parameterized queries or prepared statements."
+          },
+          "properties": {},
+          "ruleId": "javascript.sequelize.security.audit.sequelize-injection-express.express-sequelize-injection"
+        },
+        {
+          "fingerprints": {
+            "matchBasedId/v1": "9b3e6d1a4c7f0e2b5d8a3c6f9e1b4d7a0c3f6e9b2d5a8c1f4e7b0d3a6c9f2e5b_0"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "routes/fileServer.ts",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 55,
+                  "endLine": 32,
+                  "snippet": {
+                    "text": "        res.sendFile(path.resolve('ftp/', file))"
+                  },
+                  "startColumn": 9,
+                  "startLine": 32
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Detected possible user input going into a `path.join` or `path.resolve` function. This could possibly lead to a path traversal vulnerability,  where the attacker can access arbitrary files on the server. Instead, be sure to sanitize or validate user input first."
+          },
+          "properties": {},
+          "ruleId": "javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal"
+        },
+        {
+          "fingerprints": {
+            "matchBasedId/v1": "2c5f8b1e4a7d0c3f6b9e2a5d8c1f4b7e0a3d6c9f2e5b8a1d4c7f0e3b6a9d2c5f_0"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "routes/redirect.ts",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 26,
+                  "endLine": 22,
+                  "snippet": {
+                    "text": "      res.redirect(toUrl)"
+                  },
+                  "startColumn": 7,
+                  "startLine": 22
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "The application redirects to a URL specified by user-supplied input `req` that is not validated. This could redirect users to malicious locations. Consider using an allow-list approach to validate URLs, or warn users they are being redirected to a third-party website."
+          },
+          "properties": {},
+          "ruleId": "javascript.express.security.audit.express-open-redirect.express-open-redirect"
+        },
+        {
+          "fingerprints": {
+            "matchBasedId/v1": "7e0b3d6a9c2f5e8b1d4a7c0f3e6b9d2a5c8f1e4b7d0a3c6f9e2b5d8a1c4f7e0b_0"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "lib/insecurity.ts",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 101,
+                  "endLine": 36,
+                  "snippet": {
+                    "text": "export const hash = (data: string) => crypto.createHash('md5').update(data).digest('hex')"
+                  },
+                  "startColumn": 39,
+                  "startLine": 36
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "It looks like MD5 is used as a password hash. MD5 is not considered a secure password hash because it can be cracked by an attacker in a short amount of time. Use a suitable password hashing function such as bcrypt. You can use the `bcrypt` node.js package."
+          },
+          "properties": {},
+          "ruleId": "javascript.lang.security.audit.md5-used-as-password.md5-used-as-password"
+        },
+        {
+          "fingerprints": {
+            "matchBasedId/v1": "5a8d1c4f7b0e3a6d9c2f5b8e1a4d7c0f3b6e9a2d5c8f1b4e7a0d3c6f9b2e5a8d_0"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "frontend/src/app/search-result/search-result.component.ts",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 84,
+                  "endLine": 185,
+                  "snippet": {
+                    "text": "        this.searchValue = this.sanitizer.bypassSecurityTrustHtml(queryParam)"
+                  },
+                  "startColumn": 28,
+                  "startLine": 185
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "The method `bypassSecurityTrustHtml` disables Angular's built-in sanitization. If the value passed to it is user-controlled, this leads to cross-site scripting (XSS). Avoid these methods, or make sure the value is sanitized before it reaches them."
+          },
+          "properties": {},
+          "ruleId": "typescript.angular.security.audit.angular-bypasssecuritytrust.angular-bypasssecuritytrust"
+        },
+        {
+          "fingerprints": {
+            "matchBasedId/v1": "1d4a7c0f3b6e9d2a5c8f1e4b7a0d3c6f9b2e5a8d1c4f7b0e3a6d9c2f5b8e1a4d_0"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "server.ts",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 22,
+                  "endLine": 203,
+                  "snippet": {
+                    "text": "const app = express()"
+                  },
+                  "startColumn": 13,
+                  "startLine": 203
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "A CSRF middleware was not detected in your express application. Ensure you are either using one such as `csurf` or `csrf` (see rule references) and/or you are properly doing CSRF validation in your routes with a token or cookies."
+          },
+          "properties": {},
+          "ruleId": "javascript.express.security.audit.express-check-csurf-middleware-usage.express-check-csurf-middleware-usage"
+        }
+      ],
+      "tool": {
+        "driver": {
+          "name": "Semgrep OSS",
+          "rules": [
+            {
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "fullDescription": {
+                "text": "Detected a sequelize statement that is tainted by user-input. This could lead to SQL injection if the variable is user-controlled and is not properly sanitized. In order to prevent SQL injection, it is recommended to use parameterized queries or prepared statements."
+              },
+              "help": {
+                "markdown": "Detected a sequelize statement that is tainted by user-input. This could lead to SQL injection if the variable is user-controlled and is not properly sanitized. In order to prevent SQL injection, it is recommended to use parameterized queries or prepared statements.\n\n<b>References:</b>\n - [https://sequelize.org/docs/v6/core-concepts/raw-queries/#replacements](https://sequelize.org/docs/v6/core-concepts/raw-queries/#replacements)\n",
+                "text": "Detected a sequelize statement that is tainted by user-input. This could lead to SQL injection if the variable is user-controlled and is not properly sanitized. In order to prevent SQL injection, it is recommended to use parameterized queries or prepared statements.\nReferences:\n - https://sequelize.org/docs/v6/core-concepts/raw-queries/#replacements\n"
+              },
+              "helpUri": "https://semgrep.dev/r/javascript.sequelize.security.audit.sequelize-injection-express.express-sequelize-injection",
+              "id": "javascript.sequelize.security.audit.sequelize-injection-express.express-sequelize-injection",
+              "name": "javascript.sequelize.security.audit.sequelize-injection-express.express-sequelize-injection",
+              "properties": {
+                "precision": "very-high",
+                "tags": [
+                  "CWE-89: Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')",
+                  "OWASP-A01:2017 - Injection",
+                  "OWASP-A03:2021 - Injection",
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "Semgrep Finding: javascript.sequelize.security.audit.sequelize-injection-express.express-sequelize-injection"
+              }
+            },
+            {
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "fullDescription": {
+                "text": "Detected possible user input going into a `path.join` or `path.resolve` function. This could possibly lead to a path traversal vulnerability,  where the attacker can access arbitrary files on the server. Instead, be sure to sanitize or validate user input first."
+              },
+              "help": {
+                "markdown": "Detected possible user input going into a `path.join` or `path.resolve` function. This could possibly lead to a path traversal vulnerability,  where the attacker can access arbitrary files on the server. Instead, be sure to sanitize or validate user input first.\n\n<b>References:</b>\n - [https://owasp.org/www-community/attacks/Path_Traversal](https://owasp.org/www-community/attacks/Path_Traversal)\n",
+                "text": "Detected possible user input going into a `path.join` or `path.resolve` function. This could possibly lead to a path traversal vulnerability,  where the attacker can access arbitrary files on the server. Instead, be sure to sanitize or validate user input first.\nReferences:\n - https://owasp.org/www-community/attacks/Path_Traversal\n"
+              },
+              "helpUri": "https://semgrep.dev/r/javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal",
+              "id": "javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal",
+              "name": "javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal",
+              "properties": {
+                "precision": "very-high",
+                "tags": [
+                  "CWE-22: Improper Limitation of a Pathname to a Restricted Directory ('Path Traversal')",
+                  "OWASP-A05:2017 - Broken Access Control",
+                  "OWASP-A01:2021 - Broken Access Control",
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "Semgrep Finding: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal"
+              }
+            },
+            {
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "fullDescription": {
+                "text": "The application redirects to a URL specified by user-supplied input `req` that is not validated. This could redirect users to malicious locations. Consider using an allow-list approach to validate URLs, or warn users they are being redirected to a third-party website."
+              },
+              "help": {
+                "markdown": "The application redirects to a URL specified by user-supplied input `req` that is not validated. This could redirect users to malicious locations. Consider using an allow-list approach to validate URLs, or warn users they are being redirected to a third-party website.\n\n<b>References:</b>\n - [https://cheatsheetseries.owasp.org/cheatsheets/Unvalidated_Redirects_and_Forwards_Cheat_Sheet.html](https://cheatsheetseries.owasp.org/cheatsheets/Unvalidated_Redirects_and_Forwards_Cheat_Sheet.html)\n",
+                "text": "The application redirects to a URL specified by user-supplied input `req` that is not validated. This could redirect users to malicious locations. Consider using an allow-list approach to validate URLs, or warn users they are being redirected to a third-party website.\nReferences:\n - https://cheatsheetseries.owasp.org/cheatsheets/Unvalidated_Redirects_and_Forwards_Cheat_Sheet.html\n"
+              },
+              "helpUri": "https://semgrep.dev/r/javascript.express.security.audit.express-open-redirect.express-open-redirect",
+              "id": "javascript.express.security.audit.express-open-redirect.express-open-redirect",
+              "name": "javascript.express.security.audit.express-open-redirect.express-open-redirect",
+              "properties": {
+                "precision": "very-high",
+                "tags": [
+                  "CWE-601: URL Redirection to Untrusted Site ('Open Redirect')",
+                  "OWASP-A01:2021 - Broken Access Control",
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "Semgrep Finding: javascript.express.security.audit.express-open-redirect.express-open-redirect"
+              }
+            },
+            {
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "fullDescription": {
+                "text": "It looks like MD5 is used as a password hash. MD5 is not considered a secure password hash because it can be cracked by an attacker in a short amount of time. Use a suitable password hashing function such as bcrypt. You can use the `bcrypt` node.js package."
+              },
+              "help": {
+                "markdown": "It looks like MD5 is used as a password hash. MD5 is not considered a secure password hash because it can be cracked by an attacker in a short amount of time. Use a suitable password hashing function such as bcrypt. You can use the `bcrypt` node.js package.\n\n<b>References:</b>\n - [https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html)\n",
+                "text": "It looks like MD5 is used as a password hash. MD5 is not considered a secure password hash because it can be cracked by an attacker in a short amount of time. Use a suitable password hashing function such as bcrypt. You can use the `bcrypt` node.js package.\nReferences:\n - https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html\n"
+              },
+              "helpUri": "https://semgrep.dev/r/javascript.lang.security.audit.md5-used-as-password.md5-used-as-password",
+              "id": "javascript.lang.security.audit.md5-used-as-password.md5-used-as-password",
+              "name": "javascript.lang.security.audit.md5-used-as-password.md5-used-as-password",
+              "properties": {
+                "precision": "very-high",
+                "tags": [
+                  "CWE-328: Use of Weak Hash",
+                  "OWASP-A02:2021 - Cryptographic Failures",
+                  "OWASP-A03:2017 - Sensitive Data Exposure",
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "Semgrep Finding: javascript.lang.security.audit.md5-used-as-password.md5-used-as-password"
+              }
+            },
+            {
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "fullDescription": {
+                "text": "The method `bypassSecurityTrustHtml` disables Angular's built-in sanitization. If the value passed to it is user-controlled, this leads to cross-site scripting (XSS). Avoid these methods, or make sure the value is sanitized before it reaches them."
+              },
+              "help": {
+                "markdown": "The method `bypassSecurityTrustHtml` disables Angular's built-in sanitization. If the value passed to it is user-controlled, this leads to cross-site scripting (XSS). Avoid these methods, or make sure the value is sanitized before it reaches them.\n\n<b>References:</b>\n - [https://angular.io/guide/security#bypass-security-apis](https://angular.io/guide/security#bypass-security-apis)\n",
+                "text": "The method `bypassSecurityTrustHtml` disables Angular's built-in sanitization. If the value passed to it is user-controlled, this leads to cross-site scripting (XSS). Avoid these methods, or make sure the value is sanitized before it reaches them.\nReferences:\n - https://angular.io/guide/security#bypass-security-apis\n"
+              },
+              "helpUri": "https://semgrep.dev/r/typescript.angular.security.audit.angular-bypasssecuritytrust.angular-bypasssecuritytrust",
+              "id": "typescript.angular.security.audit.angular-bypasssecuritytrust.angular-bypasssecuritytrust",
+              "name": "typescript.angular.security.audit.angular-bypasssecuritytrust.angular-bypasssecuritytrust",
+              "properties": {
+                "precision": "very-high",
+                "tags": [
+                  "CWE-79: Improper Neutralization of Input During Web Page Generation ('Cross-site Scripting')",
+                  "OWASP-A07:2017 - Cross-Site Scripting (XSS)",
+                  "OWASP-A03:2021 - Injection",
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "Semgrep Finding: typescript.angular.security.audit.angular-bypasssecuritytrust.angular-bypasssecuritytrust"
+              }
+            },
+            {
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "fullDescription": {
+                "text": "A CSRF middleware was not detected in your express application. Ensure you are either using one such as `csurf` or `csrf` (see rule references) and/or you are properly doing CSRF validation in your routes with a token or cookies."
+              },
+              "help": {
+                "markdown": "A CSRF middleware was not detected in your express application. Ensure you are either using one such as `csurf` or `csrf` (see rule references) and/or you are properly doing CSRF validation in your routes with a token or cookies.\n\n<b>References:</b>\n - [https://www.npmjs.com/package/csurf](https://www.npmjs.com/package/csurf)\n - [https://www.npmjs.com/package/csrf](https://www.npmjs.com/package/csrf)\n",
+                "text": "A CSRF middleware was not detected in your express application. Ensure you are either using one such as `csurf` or `csrf` (see rule references) and/or you are properly doing CSRF validation in your routes with a token or cookies.\nReferences:\n - https://www.npmjs.com/package/csurf\n - https://www.npmjs.com/package/csrf\n"
+              },
+              "helpUri": "https://semgrep.dev/r/javascript.express.security.audit.express-check-csurf-middleware-usage.express-check-csurf-middleware-usage",
+              "id": "javascript.express.security.audit.express-check-csurf-middleware-usage.express-check-csurf-middleware-usage",
+              "name": "javascript.express.security.audit.express-check-csurf-middleware-usage.express-check-csurf-middleware-usage",
+              "properties": {
+                "precision": "very-high",
+                "tags": [
+                  "CWE-352: Cross-Site Request Forgery (CSRF)",
+                  "OWASP-A01:2021 - Broken Access Control",
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "Semgrep Finding: javascript.express.security.audit.express-check-csurf-middleware-usage.express-check-csurf-middleware-usage"
+              }
+            }
+          ],
+          "semanticVersion": "1.142.0"
+        }
+      }
+    }
+  ],
+  "version": "2.1.0"
+}
