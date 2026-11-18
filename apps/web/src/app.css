@@ -192,6 +192,91 @@
   .section .note {
     color: var(--muted);
   }
+
+  /* ---------- plain words under a title, with an optional fold-out list of terms ---------- */
+  .explain {
+    max-width: 76ch;
+    margin: -4px 0 14px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  .explain p + p {
+    margin-top: 6px;
+  }
+  .explain strong {
+    color: var(--text);
+    font-weight: 500;
+  }
+  .explain details {
+    margin-top: 6px;
+  }
+  .explain summary {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 32px;
+    color: var(--text);
+    font-weight: 500;
+    cursor: pointer;
+    list-style: none;
+    transition: opacity var(--t-hover) var(--ease-out);
+  }
+  .explain summary::-webkit-details-marker {
+    display: none;
+  }
+  .explain summary::before {
+    content: "+";
+    display: inline-grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    border: 1px solid var(--control);
+    border-radius: 4px;
+    font-size: 13px;
+    line-height: 1;
+  }
+  .explain details[open] summary::before {
+    content: "\2212";
+  }
+  .more-warnings summary {
+    margin-top: 4px;
+    color: var(--text);
+    font-weight: 500;
+    cursor: pointer;
+    min-height: 32px;
+    display: inline-flex;
+    align-items: center;
+  }
+  .more-warnings summary:hover {
+    opacity: 0.7;
+  }
+  .explain summary:hover {
+    opacity: 0.7;
+  }
+  .explain dl {
+    display: grid;
+    gap: 8px;
+    margin-top: 8px;
+    padding: 14px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+  }
+  .explain dl > div {
+    display: grid;
+    grid-template-columns: 150px 1fr;
+    gap: 16px;
+  }
+  .explain dt {
+    color: var(--text);
+    font-weight: 500;
+  }
+  @media (max-width: 760px) {
+    .explain dl > div {
+      grid-template-columns: 1fr;
+      gap: 2px;
+    }
+  }
   .panel {
     background: var(--surface);
     border: 1px solid var(--border);

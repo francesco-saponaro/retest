@@ -1,6 +1,7 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, useRouter, type ErrorComponentProps } from "@tanstack/react-router";
 import { ApiError } from "../api/client.js";
+import { Explain } from "../components/Explain.js";
 import { StatusPill } from "../components/StatusPill.js";
 import { PHASES, PHASE_DETAILS } from "@retest/schema";
 import { count, messageOf, phaseLine, relativeDay } from "../lib/format.js";
@@ -16,6 +17,18 @@ export function Assessments() {
       <Frame total={items.length} demo={client.mode === "demo"} />
       <div className="with-rail">
       <div className="grid gap-6">
+      <div>
+      <Explain
+        terms={[
+          ["Assessment", "One security check of one client's systems, from the written permission to the final report. Open one to see its findings."],
+          ["Phase", "Which of the six steps the assessment has reached (they are listed on the right)."],
+          ["Status", "Draft while the scope is being written, active while the work is going on, closed when the report is delivered."],
+          ["Targets", "How many things the client allowed you to test: a machine, a website, a container image, a code repository. Each one is a line in the written scope."],
+          ["Updated", "When anything last changed in it."],
+        ]}
+      >
+        Retest is where a security tester keeps the work of an assessment. Scanners find possible problems; Retest collects what they say in one list, removes the repeats, and tracks each problem until a person has checked it, it is fixed and the fix is tested again.
+      </Explain>
       <div className="panel">
         {items.length === 0 ? (
           <p className="empty">No assessments yet.</p>
@@ -55,6 +68,7 @@ export function Assessments() {
           </div>
         )}
       </div>
+      </div>
         <ScannersPanel />
       </div>
       <PhasesRail />
@@ -82,6 +96,9 @@ function ScannersPanel() {
         </h2>
         <span className="note">six scanners, one finding format</span>
       </header>
+      <Explain>
+        A scanner is a program that looks for weaknesses on its own: open ports, missing protections, libraries with known flaws, dangerous code. Each one writes its results in its own file format, and Retest reads all six. <strong>Real output</strong> is the unedited file from the real scan above; <strong>Sample file</strong> is a short example used by the practice assessments and the tests.
+      </Explain>
       <div className="panel">
         <div className="table-wrap">
           <table className="fold">

@@ -4,6 +4,7 @@ import { EVIDENCE_KINDS, FINDING_FIELDS, UNASSESSED_IMPACT, UNWRITTEN_FIX, asvsC
 import { useId, useState, type FormEvent, type ReactNode } from "react";
 import type { AuditLine, EvidencePatch, FindingDetail, FindingPatch, NewEvidence } from "../api/client.js";
 import { Crumbs } from "../components/Crumbs.js";
+import { Explain } from "../components/Explain.js";
 import { CvssCalculator } from "../components/CvssCalculator.js";
 import { SeverityMark } from "../components/SeverityMark.js";
 import { Workflow } from "../components/Workflow.js";
@@ -75,6 +76,9 @@ export function Finding() {
           <h2 id="workflow-heading">Where it stands</h2>
           <span className="note">{phaseLine(f.phase)}</span>
         </header>
+        <Explain>
+          A finding moves through the same six steps as the assessment. To move it on to validation, a person tests it and attaches proof; then they can mark it confirmed, a <strong>false positive</strong> (the scanner was wrong) or an <strong>accepted risk</strong> (real, but the owner decides to live with it). It is closed only when a retest after the fix passes.
+        </Explain>
         <Workflow f={f} act={act} />
       </section>
 
@@ -85,6 +89,9 @@ export function Finding() {
               <h2 id="fields-heading">The seven fields</h2>
               <span className="note">what a report needs for every finding</span>
             </header>
+            <Explain>
+              Every finding in a report answers the same seven questions: what it is, where it is, what an attacker could do with it, the proof, how risky it is, how to fix it, and how the fix was checked. The scanner fills what it can; a person writes the rest after checking.
+            </Explain>
             <Fields f={f} write={(p) => patch.mutateAsync(p)} />
           </section>
 
@@ -93,6 +100,9 @@ export function Finding() {
               <h2 id="evidence-heading">Evidence</h2>
               <span className="note">{redactionLine(f.evidence)}</span>
             </header>
+            <Explain>
+              The proof. The scanner's own output comes in with the import; while checking, the tester adds what they saw themselves, such as a command and its answer. Passwords, cookies and keys must be hidden ("redacted") before a piece of evidence can go into a report.
+            </Explain>
             <EvidenceList f={f} add={(e) => addEvidence.mutateAsync(e)} patch={(eid, p) => patchEvidence.mutateAsync({ eid, p })} />
           </section>
 
@@ -101,6 +111,9 @@ export function Finding() {
               <h2 id="sources-heading">Sources</h2>
               <span className="note">{count(f.sources.length, "tool")} reported it</span>
             </header>
+            <Explain>
+              Which scanners reported this, and how each one described and rated it. Two rows means two tools found the same problem on the same asset, and Retest merged them into this one finding.
+            </Explain>
             <div className="panel">
               <Sources sources={f.sources} />
             </div>
@@ -111,6 +124,9 @@ export function Finding() {
               <h2 id="standards-heading">Standards</h2>
               <span className="note">from the CWE, once classified</span>
             </header>
+            <Explain>
+              The security checklists this finding falls under. They start from the CWE, the standard name for the kind of weakness (CWE-89 is SQL injection), and map it to the OWASP Top 10 and other lists clients and auditors use.
+            </Explain>
             <div className="panel">
               <Standards f={f} />
             </div>
@@ -121,6 +137,7 @@ export function Finding() {
               <h2 id="history-heading">History</h2>
               <span className="note">{history.data ? (history.data.length ? `${count(history.data.length, "entry")}, newest first` : "") : ""}</span>
             </header>
+            <Explain>Every change to this finding: who made it, when and why.</Explain>
             <div className="panel">
               <History lines={history.data} failed={history.isError ? messageOf(history.error) : null} retry={() => void history.refetch()} />
             </div>
@@ -132,6 +149,9 @@ export function Finding() {
             <h2 id="risk-heading">Risk and CVSS</h2>
             <span className="note">v3.1 base metrics</span>
           </header>
+          <Explain>
+            CVSS is the standard way to score how bad a flaw is, from 0 to 10. You answer eight questions, such as whether it can be reached over the internet and whether the attacker needs to log in, and the score follows from the answers. It says how bad the flaw is anywhere; how risky it is for this business is decided in the risk phase.
+          </Explain>
           <CvssCalculator f={f} store={(risk) => patch.mutateAsync({ risk })} />
         </aside>
       </div>

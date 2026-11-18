@@ -2,7 +2,8 @@ import { useQuery, useSuspenseQuery, type UseQueryResult } from "@tanstack/react
 import { Link, useRouter, type ErrorComponentProps } from "@tanstack/react-router";
 import type { Asset, AssetKind } from "@retest/schema";
 import type { ReactNode } from "react";
-import type { AssessmentDetail, AuditLine, ImportOut, Totals } from "../api/client.js";
+import type { AssessmentDetail, AuditLine, FindingSummary, ImportOut, Totals } from "../api/client.js";
+import { Explain } from "../components/Explain.js";
 import { PhaseBoard } from "../components/PhaseBoard.js";
 import { SeverityTray } from "../components/SeverityTray.js";
 import { StatusPill } from "../components/StatusPill.js";
@@ -22,7 +23,8 @@ export function Overview() {
   const assets = useQuery(assetsQuery(client, id));
   const imports = useQuery(importsQuery(client, id));
   const history = useQuery(auditQuery(client, id));
-  const findings = useQuery({ ...findingsQuery(client, id, {}), enabled: (history.data?.some((l) => l.findingId) ?? false) });
+  const findings = useQuery(findingsQuery(client, id, {}));
+  const toolsByAsset = assetTools(findings.data?.items);
   const titles = new Map((findings.data?.items ?? []).map((f) => [f.id, f.title]));
 
   return (
@@ -35,8 +37,8 @@ export function Overview() {
           <h1>{a.name}</h1>
           <p className="sub">{findingLine(a.totals)}</p>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="muted whitespace-nowrap">{a.client ?? ""}</span>
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="muted">{a.client ?? ""}</span>
           <StatusPill status={a.status} />
           {a.totals.findings > 0 ? (
             <Link to="/a/$id/report" params={{ id }} className="btn">
@@ -51,6 +53,9 @@ export function Overview() {
           <h2>Where it stands</h2>
           <span className="note">{phaseLine(a.phase)}</span>
         </header>
+        <Explain>
+          Every assessment moves through six steps, from left to right. The highlighted box is the step the whole assessment is in; the number in each box is how many findings are in that step right now.
+        </Explain>
         <PhaseBoard current={a.phase} totals={a.totals} />
       </section>
 
@@ -65,6 +70,20 @@ export function Overview() {
             <span className="note">nothing on {count(a.totals.assets, "asset")}</span>
           )}
         </header>
+        <Explain
+          terms={[
+            ["Critical, high", "Could let someone take over the system or reach its data. Check these first."],
+            ["Medium, low", "A weakness that helps an attacker, or needs other conditions to be dangerous."],
+            ["Informational", "Not a flaw on its own: a fact worth knowing, like the software version a server shows."],
+            ["Open", "Still to be dealt with. Every finding starts here."],
+            ["False positive", "A person checked and the scanner was wrong. Kept, with the reason, so nobody checks it twice."],
+            ["Accepted risk", "Real, but the owner decided to live with it, in writing, with a reason."],
+            ["Closed", "Fixed, and a retest proved the fix works."],
+          ]}
+          label="What the severities and statuses mean"
+        >
+          A finding is one possible problem on one thing, for example "an old OpenSSL with a known flaw, inside the Juice Shop image". When two scanners report the same problem, Retest keeps one finding with both as sources. The severity is how bad the problem would be if it is real; until a person checks it, it is only what the scanner said.
+        </Explain>
         <SeverityTray totals={a.totals} />
         <div className="mt-3">
           <StatusStrip totals={a.totals} />
@@ -77,15 +96,21 @@ export function Overview() {
             <h2 className="text-[18px] leading-6 font-medium">Scope</h2>
             <span className="note">{scopeLine(a.scope)}{windowLine(a.scope)}</span>
           </header>
-          <Scope a={a} assets={assets.data} />
+          <Explain>
+            The scope is the written permission: what you are allowed to test. Scanning anything outside it can be illegal, so it comes first. A <strong>target</strong> is one line of that permission: a machine's address, a website's URL, a container image or a code repository.
+          </Explain>
+          <Scope a={a} assets={assets.data} tools={toolsByAsset} />
         </section>
         <section>
           <header className="flex items-baseline justify-between gap-4 mb-3">
             <h2 className="text-[18px] leading-6 font-medium">Assets</h2>
             <span className="note">{assets.data ? count(assets.data.length, "asset") : ""}</span>
           </header>
+          <Explain>
+            An asset is a real thing a scanner found inside a target: the machine, the website on it, the image, the code. Each one is checked against the scope; anything outside it is marked <strong>Out of scope</strong> so it cannot slip into the work.
+          </Explain>
           <Block query={assets} what="the assets" rows={4}>
-            {(items) => <AssetsTable items={items} />}
+            {(items) => <AssetsTable items={items} tools={toolsByAsset} />}
           </Block>
         </section>
       </div>
@@ -95,6 +120,17 @@ export function Overview() {
           <h2>Imports</h2>
           <span className="note">{imports.data ? `${count(imports.data.length, "scanner file")}, newest first` : ""}</span>
         </header>
+        <Explain
+          terms={[
+            ["Parsed", "How many results Retest read from the file."],
+            ["Created", "How many became new findings."],
+            ["Merged", "How many described a problem already on the list (from this tool or another), so they were added to that finding as one more source instead of being counted twice."],
+            ["Assets", "How many new assets the file added. 0 means everything it reported was on assets already known."],
+            ["Warnings", "Anything Retest could not take at face value. \"No CVSS v3 vector\" means the tool gave a severity word but not the formula behind it, so the rating cannot be checked."],
+          ]}
+        >
+          Each row is one file a scanner wrote, imported as it was, without edits. Every tool writes its own format; Retest reads all of them into the same kind of finding. Importing the same file twice changes nothing.
+        </Explain>
         <Block query={imports} what="the imports" rows={3}>
           {(items) => <ImportsTable items={items} />}
         </Block>
@@ -111,6 +147,9 @@ export function Overview() {
             <span className="note">{history.data ? (history.data.length ? "everything so far, newest first" : "") : ""}</span>
           )}
         </header>
+        <Explain>
+          Every change is written down with who made it, when and why: imports, phase changes, a finding marked as a false positive. Nothing is edited quietly, so the trail can be shown to a client or an auditor.
+        </Explain>
         <Block query={history} what="the history" rows={3}>
           {(lines) => <RecentHistory id={id} lines={lines} titles={titles} />}
         </Block>
@@ -188,8 +227,10 @@ function coverText(n: number | undefined) {
  * What was authorised, one target per row, with how many of the assets each target covers on its
  * own (the same rule the import applies). A target covering nothing has not been scanned yet.
  */
-function Scope({ a, assets }: { a: Pick<AssessmentDetail, "client" | "scope">; assets: Asset[] | undefined }) {
-  const covers = (t: string) => assets?.filter((x) => coveredByScope(x, { ...a.scope, targets: [t], exclusions: [] })).length;
+function Scope({ a, assets, tools }: { a: Pick<AssessmentDetail, "client" | "scope">; assets: Asset[] | undefined; tools: Map<string, string[]> }) {
+  const covered = (t: string) => assets?.filter((x) => coveredByScope(x, { ...a.scope, targets: [t], exclusions: [] }));
+  const covers = (t: string) => covered(t)?.length;
+  const testedBy = (t: string) => [...new Set((covered(t) ?? []).flatMap((x) => tools.get(x.id) ?? []))].sort();
   const rows = [...a.scope.targets.map((t) => ({ t, excluded: false })), ...a.scope.exclusions.map((t) => ({ t, excluded: true }))];
   return (
     <div className="panel">
@@ -198,6 +239,7 @@ function Scope({ a, assets }: { a: Pick<AssessmentDetail, "client" | "scope">; a
           <thead>
             <tr>
               <th>Target</th>
+              <th>Tested by</th>
               <th className="n">Covers</th>
             </tr>
           </thead>
@@ -205,6 +247,7 @@ function Scope({ a, assets }: { a: Pick<AssessmentDetail, "client" | "scope">; a
             {rows.map((r) => (
               <tr key={`${r.excluded ? "x" : "t"}-${r.t}`}>
                 <td className="id">{r.t}</td>
+                <td className="line2">{r.excluded ? <span className="dash">—</span> : toolList(testedBy(r.t))}</td>
                 <td className="n key">{r.excluded ? <span className="pill warn">Excluded</span> : coverText(covers(r.t))}</td>
               </tr>
             ))}
@@ -213,6 +256,24 @@ function Scope({ a, assets }: { a: Pick<AssessmentDetail, "client" | "scope">; a
       </div>
     </div>
   );
+}
+
+const TOOL_NAMES: Record<string, string> = { nmap: "Nmap", nuclei: "Nuclei", zap: "ZAP", semgrep: "Semgrep", trivy: "Trivy", prowler: "Prowler", manual: "By hand" };
+
+/** Which tools reported findings on each asset, from the findings' sources. */
+function assetTools(items: FindingSummary[] | undefined): Map<string, string[]> {
+  const out = new Map<string, Set<string>>();
+  for (const f of items ?? []) {
+    const set = out.get(f.assetId) ?? new Set<string>();
+    for (const s of f.sources) set.add(s.tool);
+    out.set(f.assetId, set);
+  }
+  return new Map([...out].map(([k, v]) => [k, [...v].sort()]));
+}
+
+function toolList(tools: string[]) {
+  if (tools.length === 0) return <span className="muted">nothing yet</span>;
+  return tools.map((t) => TOOL_NAMES[t] ?? t).join(", ");
 }
 
 const KIND_LABELS: Record<AssetKind, string> = {
@@ -232,7 +293,7 @@ function assetSub(x: Asset): string | null {
   return where && where !== x.name && !x.name.includes(where) ? where : null;
 }
 
-function AssetsTable({ items }: { items: Asset[] }) {
+function AssetsTable({ items, tools }: { items: Asset[]; tools: Map<string, string[]> }) {
   if (items.length === 0) return <p className="empty">No assets yet: the first import creates them.</p>;
   return (
     <div className="table-wrap">
@@ -241,6 +302,7 @@ function AssetsTable({ items }: { items: Asset[] }) {
           <tr>
             <th>Asset</th>
             <th>Kind</th>
+            <th>Found by</th>
             <th>Coverage</th>
           </tr>
         </thead>
@@ -252,6 +314,7 @@ function AssetsTable({ items }: { items: Asset[] }) {
                 {assetSub(x) ? <span className="muted font-normal"> · {assetSub(x)}</span> : null}
               </td>
               <td className="line2">{KIND_LABELS[x.kind]}</td>
+              <td className="line2">{toolList(tools.get(x.id) ?? [])}</td>
               <td className="key">{x.inScope ? <span className="muted">In scope</span> : <span className="pill warn">Out of scope</span>}</td>
             </tr>
           ))}
@@ -289,11 +352,7 @@ function ImportsTable({ items }: { items: ImportOut[] }) {
               <td className="n" data-label="assets">{i.assetsCreated}</td>
               {i.warnings.length ? (
                 <td className="line2">
-                  {i.warnings.map((w) => (
-                    <span key={w} className="warning">
-                      {w}
-                    </span>
-                  ))}
+                  <Warnings items={i.warnings} />
                 </td>
               ) : (
                 <td className="line2 quiet">
@@ -306,6 +365,30 @@ function ImportsTable({ items }: { items: ImportOut[] }) {
         </tbody>
       </table>
     </div>
+  );
+}
+
+/** A file's warnings: all of them when there are a few, the first two and a fold for the rest when there are many. */
+function Warnings({ items }: { items: string[] }) {
+  const shown = items.length > 3 ? items.slice(0, 2) : items;
+  return (
+    <>
+      {shown.map((w, n) => (
+        <span key={`${n}-${w}`} className="warning">
+          {w}
+        </span>
+      ))}
+      {items.length > 3 ? (
+        <details className="more-warnings">
+          <summary>Show all {items.length} warnings</summary>
+          {items.slice(2).map((w, n) => (
+            <span key={`${n}-${w}`} className="warning">
+              {w}
+            </span>
+          ))}
+        </details>
+      ) : null}
+    </>
   );
 }
 

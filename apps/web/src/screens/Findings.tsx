@@ -5,6 +5,7 @@ import { OWASP_TOP_10_2021, PHASES, PHASE_DETAILS, SEVERITY_LABELS, TOOLS, type 
 import { useRef, useState, type FormEvent } from "react";
 import type { FindingFilter, FindingSummary } from "../api/client.js";
 import { Crumbs } from "../components/Crumbs.js";
+import { Explain } from "../components/Explain.js";
 import { SeverityMark } from "../components/SeverityMark.js";
 import { REPORT_ORDER, findingsLine, messageOf, shortPhase } from "../lib/format.js";
 import { assessmentQuery, assetsQuery, findingsQuery } from "../queries.js";
@@ -42,6 +43,21 @@ export function Findings() {
           <p className="sub">{page.data ? findingsLine({ all: a.totals.findings, matched: page.data.total, items: page.data.items, filtered }) : page.isError ? "" : "Loading the findings."}</p>
         </div>
       </div>
+
+      <Explain
+        terms={[
+          ["Finding", "What the problem is, and under it the exact place: a package and version, a file and line, or a web address."],
+          ["Asset", "The thing it was found on: the website, the machine, the container image or the source code."],
+          ["Severity", "How bad it would be if real, from critical down to informational. Until a person checks it, it is the scanner's word."],
+          ["CVSS", "The standard 0 to 10 score behind the severity. Empty when the tool gave no CVSS data."],
+          ["Phase", "Which of the six steps this finding is in. Everything a scanner reports starts in recon or assessment."],
+          ["Tools", "Which scanners reported it. Two tools on one row means two scanners saw the same problem."],
+          ["Evidence", "How many pieces of proof are attached: the scanner's own output, and later what a person captured while checking."],
+          ["OWASP", "Which OWASP Top 10 categories it belongs to, the list of the most common web security risks (A03 is injection, A06 outdated components)."],
+        ]}
+      >
+        Every problem the scanners reported, one row each, most severe first. Use the filters to narrow it down, for example to one tool or one asset, and open a row to check it.
+      </Explain>
 
       <FilterBar filter={filter} assets={assets.data ?? []} />
 
