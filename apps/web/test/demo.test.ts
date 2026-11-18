@@ -29,19 +29,26 @@ describe("demoClient", () => {
     expect(order.indexOf("a-juice-shop-lab")).toBeLessThan(order.indexOf("a-lab-network"));
   });
 
-  it("imports the real Nmap and Semgrep output unedited, with nothing validated yet", async () => {
+  it("imports the real lab run and Semgrep output unedited, with nothing validated yet", async () => {
     const a = await client.getAssessment("a-juice-shop-real");
-    expect(a.totals).toMatchObject({ findings: 65, assets: 2, bySeverity: { critical: 0, high: 2, medium: 56, low: 6, info: 1 } });
-    expect(a.totals.byPhase).toMatchObject({ recon: 1, assessment: 64, validation: 0 });
+    // 335 from lab/run.sh on the laptop (the same number its own summary.md gave), plus 64 from Semgrep.
+    expect(a.totals).toMatchObject({ findings: 399, assets: 4, bySeverity: { critical: 53, high: 111, medium: 176, low: 24, info: 35 } });
+    expect(a.totals.byPhase).toMatchObject({ recon: 1, assessment: 398, validation: 0 });
     const imports = await client.listImports(a.id);
-    expect(imports.map((i) => [i.tool, i.parsed, i.created, i.merged, i.warnings])).toEqual([
-      ["nmap", 1, 1, 0, []],
-      ["semgrep", 87, 64, 23, []],
+    // Newest first. ZAP merges 2 into Nuclei's findings; Trivy's 210 merges are the same CVE found again in another copy of a package.
+    expect(imports.map((i) => [i.tool, i.parsed, i.created, i.merged, i.warnings.length])).toEqual([
+      ["semgrep", 87, 64, 23, 0],
+      ["trivy", 515, 305, 210, 37],
+      ["zap", 12, 10, 2, 0],
+      ["nuclei", 19, 19, 0, 0],
+      ["nmap", 1, 1, 0, 0],
     ]);
     const assets = await client.listAssets(a.id);
     expect(assets.map((x) => [x.kind, x.name, x.inScope]).sort()).toEqual([
-      ["host", "localhost", true],
+      ["container-image", "bkimminich/juice-shop:v17.1.1", true],
+      ["host", "retest-lab-juice-shop-1.retest-lab_target", true],
       ["repository", "juice-shop", true],
+      ["web-app", "172.30.0.10:3000", true],
     ]);
   });
 

@@ -255,8 +255,14 @@ export function trivyFindings(report: TrivyReport): RawFinding[] {
 }
 
 /** Parse a whole report. A row with no CVSS v3 vector is reported: its severity cannot be checked against anything. */
-export function parseTrivy(text: string): ParseResult & { report: TrivyReport } {
+export interface TrivyOptions {
+  /** The image's name, when the report only names a saved copy of it (`juice-shop.tar`). */
+  image?: string;
+}
+
+export function parseTrivy(text: string, options: TrivyOptions = {}): ParseResult & { report: TrivyReport } {
   const report = parseTrivyReport(text);
+  if (options.image) report.artifactName = options.image;
   const warnings: string[] = [];
   for (const result of report.results) {
     for (const v of result.vulnerabilities) {

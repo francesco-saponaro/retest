@@ -97,7 +97,7 @@ async function execute(command: Exclude<Command, { kind: "help" } | { kind: "err
       } catch {
         throw new Refused(`cannot read ${command.file}`);
       }
-      const body = { assessmentId: command.assessment, tool: command.tool, content, filename: command.file.slice(-300), ...(command.repository ? { repository: command.repository } : {}) };
+      const body = { assessmentId: command.assessment, tool: command.tool, content, filename: command.file.slice(-300), ...(command.repository ? { repository: command.repository } : {}), ...(command.image ? { image: command.image } : {}) };
       const r = (await (await call(io, base, token, "/imports", { method: "POST", body })).json()) as ImportOut;
       io.out(`${r.tool} ${r.filename ?? command.file}: ${r.parsed} parsed, ${r.created} created, ${r.merged} merged, ${plural(r.assetsCreated, "asset")} created.`);
       for (const w of r.warnings) io.err(`warning: ${w}`);

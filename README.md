@@ -4,7 +4,7 @@ A vulnerability-assessment workbench. You give it the raw output of the scanners
 
 ![The overview of the lab assessment: the six phases with the findings in each, the totals by severity and status](docs/screenshots/overview.png)
 
-**Live demo:** https://retest-francesco-saponaro.netlify.app. It is the whole app with the server taken out: the API's own code runs in your browser against PostgreSQL compiled to WebAssembly, and builds three assessments when the page loads. "Juice Shop, real scan" is the unedited output of Nmap and Semgrep run against a real OWASP Juice Shop on 18 Nov 2026 ([how, step by step](lab/real-run/README.md)). The other two are made from sample files in each scanner's real format, trimmed so the tests can count every result; in the sample lab, four findings have already been taken through the workflow, so every state is on screen, including one closed by a retest. Nothing you change is kept; a reload makes the lab again.
+**Live demo:** https://retest-francesco-saponaro.netlify.app. It is the whole app with the server taken out: the API's own code runs in your browser against PostgreSQL compiled to WebAssembly, and builds three assessments when the page loads. "Juice Shop, real scan" is the unedited output of a real run on 18 Nov 2026: Nmap, Nuclei, ZAP and Trivy through `lab/run.sh` on my laptop, and Semgrep on the Juice Shop source, 399 findings in all ([how, step by step](lab/real-run/README.md)). The other two are made from sample files in each scanner's real format, trimmed so the tests can count every result; in the sample lab, four findings have already been taken through the workflow, so every state is on screen, including one closed by a retest. Nothing you change is kept; a reload makes the lab again.
 
 ## A warning about the lab
 
@@ -206,9 +206,9 @@ A tool that holds unfixed vulnerabilities and the evidence for them is worth att
 
 Real: the parsers read the tools' real formats; the CVE ids, CVSS vectors, template, plugin, rule and check ids in the fixtures are the real ones; the CVSS calculator gives FIRST's published scores; the API, the database and the rules are the same in the demo and on a server; the lab scans a real Juice Shop with the real tools.
 
-Real, from a run on 18 Nov 2026: the Nmap and Semgrep files in `lab/real-run/`, imported unedited as the demo's "Juice Shop, real scan", and the curl and `npm ls` output the sample lab uses as evidence, captured against the same Juice Shop. `lab/real-run/README.md` has every command and version.
+Real, from a run on 18 Nov 2026: the Nmap, Nuclei, ZAP, Trivy and Semgrep files in `lab/real-run/`, imported unedited as the demo's "Juice Shop, real scan", and the curl and `npm ls` output the sample lab uses as evidence, captured against the same Juice Shop. `lab/real-run/README.md` has every command, version, and what broke on the way.
 
-Simulated: the fixtures in `packages/parsers/fixtures/` are sample files written in each tool's real format and trimmed to a handful of results so the tests can count them. Nobody ran a scanner to make them. The two machines in the lab network and the AWS account in the Prowler fixture (AWS's documentation id, 123456789012) are made up, and so is the root account summary the MFA finding uses as evidence. ZAP, Nuclei, Trivy and Prowler have no real run yet: the first three need `lab/run.sh` on a machine with Docker, Prowler a cloud account you own. The demo has no server and keeps nothing.
+Simulated: the fixtures in `packages/parsers/fixtures/` are sample files written in each tool's real format and trimmed to a handful of results so the tests can count them. Nobody ran a scanner to make them. The two machines in the lab network and the AWS account in the Prowler fixture (AWS's documentation id, 123456789012) are made up, and so is the root account summary the MFA finding uses as evidence. Prowler has no real run: it needs a cloud account you own. The demo has no server and keeps nothing.
 
 ## Known limits and what comes next
 

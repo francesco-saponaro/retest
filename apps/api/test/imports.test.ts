@@ -92,6 +92,19 @@ describe("POST /imports", () => {
     expect(assets.items).toEqual([expect.objectContaining({ kind: "repository", name: "juice-shop" })]);
   });
 
+  it("puts a Trivy report on the image it is told, when the report only names a saved copy", async () => {
+    const report = JSON.parse(fixture("trivy/juice-shop-image.json")) as Record<string, unknown>;
+    report.ArtifactName = "/out/juice-shop-image.tar";
+    const res = await t.as("francesco", {
+      method: "POST",
+      url: "/imports",
+      body: { assessmentId: aid, tool: "trivy", content: JSON.stringify(report), image: "bkimminich/juice-shop:v17.1.1" },
+    });
+    expect(res.status).toBe(201);
+    const assets = (await t.as("francesco", { method: "GET", url: `/assessments/${aid}/assets` })).json() as { items: { kind: string; name: string }[] };
+    expect(assets.items.map((a) => a.name)).toEqual(["bkimminich/juice-shop:v17.1.1"]);
+  });
+
   it("keeps the parser's warnings and the classifier's notes", async () => {
     const damaged = (await importFile("nuclei", "nuclei/damaged.jsonl")).json() as ImportResult;
     expect(damaged.created).toBe(1);

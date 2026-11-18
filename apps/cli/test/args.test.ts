@@ -12,6 +12,13 @@ describe("parseCommand", () => {
       assessment: "a-1",
       repository: "juice-shop",
     });
+    expect(parseCommand(["import", "--tool", "trivy", "t.json", "--assessment", "a-1", "--image", "bkimminich/juice-shop:v17.1.1"])).toEqual({
+      kind: "import",
+      tool: "trivy",
+      file: "t.json",
+      assessment: "a-1",
+      image: "bkimminich/juice-shop:v17.1.1",
+    });
   });
 
   it("refuses an import with a tool it has no parser for, or without the file or the assessment", () => {

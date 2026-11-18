@@ -68,8 +68,11 @@ else
 fi
 for run in zap:zap.json trivy:trivy.json; do
   tool=${run%%:*} file=${run#*:}
+  # Trivy read a saved copy of the image, so its report names the file; tell the import the image's name.
+  extra=()
+  [[ $tool == trivy ]] && extra=(--image "$IMAGE")
   if [[ -s "out/$file" ]]; then
-    retest import --tool "$tool" "/lab-out/$file" --assessment "$ID"
+    retest import --tool "$tool" "/lab-out/$file" --assessment "$ID" "${extra[@]}"
   else
     echo "$tool wrote no $file; nothing to import (its messages are above)."
   fi

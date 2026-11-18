@@ -17,6 +17,8 @@ export const ImportBodySchema = z.strictObject({
   filename: z.string().min(1).max(300).optional(),
   /** Semgrep only: SARIF does not say which repository was scanned. */
   repository: z.string().min(1).max(200).optional(),
+  /** Trivy only: the image's name, when Trivy read a saved copy and the report names the file. */
+  image: z.string().min(1).max(300).optional(),
 });
 
 export const ImportQuerySchema = ImportBodySchema.omit({ content: true });
@@ -43,7 +45,7 @@ export async function runImport(db: Db, assessment: AssessmentRow, input: Import
 
   let raw: ParseResult;
   try {
-    raw = parse(input.tool, input.content, input.repository ? { repository: input.repository } : {});
+    raw = parse(input.tool, input.content, { ...(input.repository ? { repository: input.repository } : {}), ...(input.image ? { image: input.image } : {}) });
   } catch (e) {
     throw new HttpError(400, `could not parse the ${input.tool} file: ${e instanceof Error ? e.message : String(e)}`);
   }

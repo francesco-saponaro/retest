@@ -9,7 +9,7 @@ export type Command =
   | { kind: "help" }
   | { kind: "assessments" }
   | { kind: "new"; name: string; targets: string[]; exclusions: string[]; authorizedBy: string; client?: string }
-  | { kind: "import"; tool: Exclude<Tool, "manual">; file: string; assessment: string; repository?: string }
+  | { kind: "import"; tool: Exclude<Tool, "manual">; file: string; assessment: string; repository?: string; image?: string }
   | { kind: "report"; assessment: string; summary: boolean; out?: string }
   | { kind: "error"; message: string };
 
@@ -19,7 +19,7 @@ export const USAGE = `Usage:
   retest assessments                                   list the assessments you can see
   retest new --name <name> --target <t> [--target <t>] [--exclude <x>] --authorized-by <who> [--client <c>]
                                                        create an assessment, print its id
-  retest import --tool <tool> <file> --assessment <id> [--repository <name>]
+  retest import --tool <tool> <file> --assessment <id> [--repository <name>] [--image <name>]
                                                        import a scanner's output (${SCANNERS.join(", ")})
   retest report <id> [--summary] [--out <file>]        the technical report, or the executive summary, as markdown
 
@@ -52,7 +52,7 @@ export function parseCommand(argv: string[]): Command {
       if (!tool) return { kind: "error", message: `--tool must be one of ${SCANNERS.join(", ")}` };
       if (!rest[0]) return { kind: "error", message: "import needs the file to read" };
       if (!v.assessment) return { kind: "error", message: "import needs --assessment <id>" };
-      return { kind: "import", tool, file: rest[0], assessment: v.assessment, ...(v.repository ? { repository: v.repository } : {}) };
+      return { kind: "import", tool, file: rest[0], assessment: v.assessment, ...(v.repository ? { repository: v.repository } : {}), ...(v.image ? { image: v.image } : {}) };
     }
     case "report": {
       if (!rest[0]) return { kind: "error", message: "report needs the assessment id" };
@@ -73,6 +73,7 @@ function read(argv: string[]) {
       tool: { type: "string" },
       assessment: { type: "string" },
       repository: { type: "string" },
+      image: { type: "string" },
       summary: { type: "boolean" },
       out: { type: "string", short: "o" },
       name: { type: "string" },

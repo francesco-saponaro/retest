@@ -28,7 +28,7 @@ import {
   updateEvidence,
   updateFinding,
 } from "@retest/api/services/findings.js";
-import { listImports, runImport } from "@retest/api/services/imports.js";
+import { listImports, runImport, type ImportInput } from "@retest/api/services/imports.js";
 import { reportModel } from "@retest/api/services/reports.js";
 import { summaryMarkdown, technicalMarkdown } from "@retest/api/report/markdown.js";
 import { validate } from "@retest/api/http.js";
@@ -161,12 +161,13 @@ async function seedDemo(db: Db, now: Date): Promise<void> {
   await seedRealRun(db);
 }
 
-/** When the real run happened: Nmap at 15:20 UTC on 18 Nov 2026, Semgrep a few minutes before it. */
-export const REAL_RUN_AT = new Date("2026-11-18T15:10:00Z");
+/** When the real run started: Nmap at 17:00 UTC on 18 Nov 2026, the lab script on Francesco's laptop. */
+export const REAL_RUN_AT = new Date("2026-11-18T17:00:00Z");
 
 /**
- * The third assessment: what real scanners said about a real Juice Shop, imported unedited. Only
- * Nmap and Semgrep could run on that machine; nobody has validated anything here yet.
+ * The third assessment: what real scanners said about a real Juice Shop, imported unedited. Nmap,
+ * Nuclei, ZAP and Trivy ran through `lab/run.sh` on a laptop (Windows, WSL, Docker Desktop);
+ * Semgrep ran on the Juice Shop source separately. Nobody has validated anything here yet.
  */
 async function seedRealRun(db: Db): Promise<void> {
   const at = (minutes: number) => new Date(REAL_RUN_AT.getTime() + minutes * 60 * 1000);
@@ -174,21 +175,41 @@ async function seedRealRun(db: Db): Promise<void> {
     db,
     {
       name: "Juice Shop, real scan",
-      client: "Real Nmap and Semgrep output, 18 Nov 2026",
-      scope: { targets: ["127.0.0.1", "http://127.0.0.1:3000", "juice-shop"], exclusions: [], authorizedBy: DEMO_USER.sub, authorizedAt: at(0).toISOString() },
+      client: "Real Nmap, Nuclei, ZAP and Trivy from lab/run.sh, Semgrep on the source, 18 Nov 2026",
+      scope: {
+        targets: ["172.30.0.10", "http://172.30.0.10:3000", "bkimminich/juice-shop:v17.1.1", "juice-shop"],
+        exclusions: [],
+        authorizedBy: DEMO_USER.sub,
+        authorizedAt: at(0).toISOString(),
+      },
     },
     DEMO_USER,
     at(0),
     "a-juice-shop-real",
   );
+  const imports: { tool: ImportInput["tool"]; file: string; minute: number; extra?: Pick<ImportInput, "repository" | "image"> }[] = [
+    { tool: "nmap", file: "nmap.xml", minute: 1 },
+    { tool: "nuclei", file: "nuclei.jsonl", minute: 4 },
+    { tool: "zap", file: "zap.json", minute: 11 },
+    { tool: "trivy", file: "trivy.json", minute: 12, extra: { image: "bkimminich/juice-shop:v17.1.1" } },
+    { tool: "semgrep", file: "semgrep-juice-shop.sarif", minute: 14, extra: { repository: "juice-shop" } },
+  ];
   let row = await requireAssessment(db, created.id, DEMO_USER);
-  await setAssessmentStatus(db, row, "active", DEMO_USER, "Juice Shop 17.1.1 built from source on my own machine, on 127.0.0.1 only.", at(0));
-  row = await requireAssessment(db, created.id, DEMO_USER);
-  await setAssessmentPhase(db, row, "assessment", DEMO_USER, "Port 3000 found; the source is in scope too.", at(1));
-  row = await requireAssessment(db, created.id, DEMO_USER);
-  await runImport(db, row, { assessmentId: row.id, tool: "semgrep", content: REAL_RUN["real-run/semgrep-juice-shop.sarif"]!, filename: "lab/real-run/semgrep-juice-shop.sarif", repository: "juice-shop" }, DEMO_USER, at(2));
-  row = await requireAssessment(db, created.id, DEMO_USER);
-  await runImport(db, row, { assessmentId: row.id, tool: "nmap", content: REAL_RUN["real-run/nmap-juice-shop.xml"]!, filename: "lab/real-run/nmap-juice-shop.xml" }, DEMO_USER, at(10));
+  await setAssessmentStatus(db, row, "active", DEMO_USER, "Juice Shop 17.1.1 in the lab's Docker network, on 172.30.0.10 only.", at(0));
+  for (const step of imports) {
+    if (step.tool === "nuclei") {
+      row = await requireAssessment(db, created.id, DEMO_USER);
+      await setAssessmentPhase(db, row, "assessment", DEMO_USER, "Port 3000 found; the image and the source are in scope too.", at(step.minute - 1));
+    }
+    row = await requireAssessment(db, created.id, DEMO_USER);
+    await runImport(
+      db,
+      row,
+      { assessmentId: row.id, tool: step.tool, content: REAL_RUN[`real-run/${step.file}`]!, filename: `lab/real-run/${step.file}`, ...step.extra },
+      DEMO_USER,
+      at(step.minute),
+    );
+  }
 }
 
 const HOUR = 60 * 60 * 1000;

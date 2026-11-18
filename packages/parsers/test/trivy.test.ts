@@ -16,6 +16,14 @@ describe("parseTrivyReport", () => {
     expect(r.results).toHaveLength(3);
   });
 
+  it("puts the findings on the image it is told, when the report only names a saved copy", () => {
+    const fromTar = JSON.parse(image) as Record<string, unknown>;
+    fromTar.ArtifactName = "/out/juice-shop-image.tar";
+    const told = parseTrivy(JSON.stringify(fromTar), { image: "bkimminich/juice-shop:v17.1.1" });
+    expect(told.report.artifactName).toBe("bkimminich/juice-shop:v17.1.1");
+    expect(new Set(told.findings.map((f) => f.image))).toEqual(new Set(["bkimminich/juice-shop:v17.1.1"]));
+  });
+
   it("names the image by its tag when Trivy read a saved copy of it (docker save), not by the file", () => {
     const fromTar = JSON.parse(image) as Record<string, unknown>;
     fromTar.ArtifactName = "/out/juice-shop-image.tar";

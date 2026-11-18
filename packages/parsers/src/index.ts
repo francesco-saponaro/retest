@@ -4,7 +4,7 @@ import { parseNuclei } from "./nuclei.js";
 import { parseProwler } from "./prowler.js";
 import type { ParseResult } from "./raw.js";
 import { parseSemgrep, type SemgrepOptions } from "./semgrep.js";
-import { parseTrivy } from "./trivy.js";
+import { parseTrivy, type TrivyOptions } from "./trivy.js";
 import { parseZap } from "./zap.js";
 
 export type { ParseResult, RawEvidence, RawFinding } from "./raw.js";
@@ -17,7 +17,7 @@ export type { ZapAlert, ZapConfidence, ZapInstance, ZapReport, ZapSite } from ".
 export { UNNAMED_REPOSITORY, parseSarif, parseSemgrep, semgrepFindings } from "./semgrep.js";
 export type { SarifLevel, SarifLog, SarifResult, SarifRule, SarifRun, SemgrepOptions } from "./semgrep.js";
 export { parseTrivy, parseTrivyReport, trivyFindings } from "./trivy.js";
-export type { TrivyCvss, TrivyReport, TrivyResult, TrivyVulnerability } from "./trivy.js";
+export type { TrivyCvss, TrivyOptions, TrivyReport, TrivyResult, TrivyVulnerability } from "./trivy.js";
 export { parseProwler, parseProwlerOcsf, prowlerFindings } from "./prowler.js";
 export type { ProwlerCheck, ProwlerStatus } from "./prowler.js";
 export { UNASSESSED_IMPACT, UNWRITTEN_FIX, findingId, normalize } from "./normalize.js";
@@ -28,15 +28,18 @@ export { CLOUD_CHECKS, classify, cloudCheckCwes } from "./classify.js";
 export type { Classified, ClassifyOptions, CloudCheck } from "./classify.js";
 export { decodeEntities, stripHtml } from "./text.js";
 
-/** What a parser can be told. Only Semgrep needs anything: SARIF does not name the repository. */
-export type ParseOptions = SemgrepOptions;
+/**
+ * What a parser can be told. Semgrep needs the repository (SARIF does not name it); Trivy can be
+ * told the image's name, which it loses when it reads a saved copy (`docker save` then `--input`).
+ */
+export type ParseOptions = SemgrepOptions & TrivyOptions;
 
 const PARSERS: Partial<Record<Tool, (text: string, options: ParseOptions) => ParseResult>> = {
   nmap: (text) => parseNmap(text),
   nuclei: (text) => parseNuclei(text),
   zap: (text) => parseZap(text),
   semgrep: (text, options) => parseSemgrep(text, options),
-  trivy: (text) => parseTrivy(text),
+  trivy: (text, options) => parseTrivy(text, options),
   prowler: (text) => parseProwler(text),
 };
 

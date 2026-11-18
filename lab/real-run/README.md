@@ -1,58 +1,67 @@
 # A real run, 18 Nov 2026
 
-The files in `packages/parsers/fixtures/` are sample files: written by hand in each tool's real format and trimmed to a handful of results, so the tests can count every one. The files in this folder are not. They are the unedited output of real scanners run against a real OWASP Juice Shop on my own machine, and the demo imports them as a third assessment, "Juice Shop, real scan".
+The files in `packages/parsers/fixtures/` are sample files: written by hand in each tool's real format and trimmed to a handful of results, so the tests can count every one. The files in this folder are not. They are the unedited output of real scanners run against a real OWASP Juice Shop, and the demo imports them as a third assessment, "Juice Shop, real scan".
 
-## What ran, and how
+Juice Shop is a web shop built to be insecure on purpose, which is why it is safe and legal to scan: it runs in my own lab, on a private Docker network, and nothing else is touched.
 
-Everything ran on one Ubuntu 24.04 machine, against 127.0.0.1 only. Juice Shop is built to be insecure, which is why it is safe and legal to scan: it is mine, it runs on my machine, and nothing else is touched.
+## The lab run: Nmap, Nuclei, ZAP and Trivy
 
-**1. Juice Shop 17.1.1, from source**
+These four ran through `lab/run.sh` on my laptop: Windows 11, Ubuntu in WSL 2, Docker Desktop with its WSL integration turned on.
+
+```
+git clone https://github.com/francesco-saponaro/retest.git
+cd retest
+cp lab/.env.example lab/.env      # then fill in the secrets
+bash lab/run.sh 2>&1 | tee ~/lab-run.log
+```
+
+The script starts PostgreSQL, the API, the web app and Juice Shop 17.1.1 (172.30.0.10 on the lab network), builds a scanner image (ZAP 2.15.0 with Nmap and Nuclei 3.3.7 added), runs the four tools against Juice Shop only, and imports every file into a new assessment. What each one ran and found:
+
+| Tool | Command | Raw results | In Retest |
+| --- | --- | --- | --- |
+| Nmap 7.80 | `nmap -sV --script vulners -p 3000 -oX nmap.xml 172.30.0.10` | port 3000 open | 1 finding |
+| Nuclei 3.3.7 | `nuclei -u http://172.30.0.10:3000 -jsonl -rate-limit 50` | 19 matches (18 info, 1 medium) | 19 findings |
+| ZAP 2.15.0 | `zap-baseline.py -t http://172.30.0.10:3000 -J zap.json` (passive, no attacks) | 12 alerts | 10 new, 2 merged into Nuclei's |
+| Trivy 0.57.1 | `trivy image --input juice-shop-image.tar --format json` | 515 rows (51 critical, 199 high) | 305 new, 210 merged |
+
+The lab run gave 335 findings on 3 assets, the same number Retest's own `summary.md` printed at the end of the run.
+
+A few things worth knowing about the results:
+
+- **Nmap** could not name the service. It labels port 3000 "ppp" (the name in its port list) and keeps the raw HTTP answers as a fingerprint, which already show `Access-Control-Allow-Origin: *`. The `vulners` script needs a version string, an Express app does not send one, so no CVEs came from Nmap.
+- **ZAP and Nuclei agree** on two missing headers: Content-Security-Policy, and Permissions-Policy (ZAP saw the old Feature-Policy header in its place). Retest merges ZAP's two alerts into the findings Nuclei had already opened instead of counting them twice.
+- **Trivy** found most of the volume: old packages in the image's Debian 11 base (OpenSSL, libc) and in its Node modules. The top risks are sandbox escapes in `vm2` 3.9.17. Its 210 merges are the same CVE found again in another copy of the same package.
+
+## Semgrep, on the source
+
+Semgrep 1.186 ran separately the same day, on Juice Shop 17.1.1's source code, with the public rules:
 
 ```
 git clone --depth 1 -b v17.1.1 https://github.com/juice-shop/juice-shop.git
-cd juice-shop
-CYPRESS_INSTALL_BINARY=0 npm install     # Node 22; builds the frontend and the server
-npm start                                # http://127.0.0.1:3000
-```
-
-**2. Nmap 7.94, service detection on Juice Shop's port**
-
-```
-nmap -sV --script vulners,http-headers,http-title -p 3000 -oX nmap-juice-shop.xml 127.0.0.1
-```
-
-Only port 3000, because the machine runs other things that are not in scope. Two honest results worth knowing:
-
-- Nmap could not name the service. It labels port 3000 "ppp" (the name in its port list) and keeps the raw HTTP answers as a fingerprint. Those answers already show something useful: `Access-Control-Allow-Origin: *` on every response.
-- The `vulners` script needs a version string to look up, and an Express app does not give one, so it found nothing. A banner is not a version, and no version means no CVE match.
-
-Retest reads this as one inventory line, `ppp on tcp/3000`, in phase 2.
-
-**3. Semgrep 1.186, on the server code**
-
-```
-git clone --depth 1 https://github.com/semgrep/semgrep-rules.git      # the public rules, at a5ad171
+git clone --depth 1 https://github.com/semgrep/semgrep-rules.git      # at a5ad171
 cd juice-shop
 semgrep scan --metrics=off \
   --config ../semgrep-rules/javascript --config ../semgrep-rules/typescript \
   --sarif -o semgrep-juice-shop.sarif routes lib server.ts models
 ```
 
-203 rules, 250 files, 87 results. Retest folds them into 64 findings on one repository asset. Among them are the real Juice Shop flaws (SQL built from user input in `routes/login.ts` and `routes/search.ts`, a JWT signing key and an HMAC key written in `lib/insecurity.ts`, `eval` in two routes, one of them on the user's own name, and XML parsed with external entities on in `routes/fileUpload.ts`), next to plenty of noise (23 "file name is not a literal" hits, 12 style warnings). That mix is the point of the validation phase: a scanner's output is a list of things to check, not a list of vulnerabilities.
+203 rules, 250 files, 87 results. Retest folds them into 64 findings on one repository asset. Among them are the real Juice Shop flaws (SQL built from user input in `routes/login.ts` and `routes/search.ts`, a JWT signing key written in `lib/insecurity.ts`, `eval` on the user's own name, XML parsed with external entities on), next to plenty of noise (23 "file name is not a literal" hits, 12 style warnings).
 
-**4. Evidence a person captured**
+Together: 399 findings on 4 assets, none validated yet. That is the point of the validation phase: a scanner's output is a list of things to check, not a list of vulnerabilities.
+
+## What broke on the way, and the fixes
+
+The first two attempts failed. Each fix is in the code now.
+
+1. **The scanner image did not build.** The ZAP image is Debian 11, whose security archive had moved, so `apt-get` returned 404s for Nuclei's dependencies. The Dockerfile now installs only Nmap from apt and unzips the Nuclei release with Python.
+2. **Juice Shop crashed under Nuclei** (exit code 139, a segfault), so ZAP then found nothing to scan ("No route to host"). Nuclei now runs at 50 requests a second at most, Juice Shop has `restart: unless-stopped`, the script waits for it to answer again after each tool, ZAP's output is no longer hidden, and a tool that writes no file is skipped instead of stopping the run.
+3. **Real Nuclei output has `null` fields** (`"cve-id": null`) that the hand-written samples never had, and the parser refused them. It now drops null fields before checking the line.
+4. **Trivy named the asset after the tar file** (`/out/juice-shop-image.tar`), so the image looked out of scope. Imports now take `--image` to give the image's real name.
+
+## Evidence a person captured
 
 `evidence-cors.txt` is a curl with a foreign `Origin` header against the running app; `evidence-npm-ls.txt` shows which jsonwebtoken versions are installed (my home folder shortened to `~`). The sample assessment's walk-through uses these two outputs as its evidence.
 
-## What is still a sample, and why
+## Still a sample
 
-| Tool | Here | Why |
-| --- | --- | --- |
-| Nmap | real | |
-| Semgrep | real | |
-| OWASP ZAP | sample | The machine could not download ZAP. `lab/run.sh` runs it on any machine with Docker. |
-| Nuclei | sample | Same: no download of the binary or its templates. `lab/run.sh` runs it. |
-| Trivy | sample | Trivy needs its vulnerability database from a container registry. `lab/run.sh` runs it. |
-| Prowler | sample | Prowler needs a cloud account I own. The sample's account id, 123456789012, is AWS's documentation placeholder. |
-
-To get real files for the other four, run `lab/run.sh` on a machine with Docker (see the main README): it starts Juice Shop and runs Nmap, Nuclei, ZAP and Trivy against it. Prowler only makes sense against your own cloud account.
+Prowler checks a cloud account's settings, so it only makes sense against a cloud account I own. The sample's account id, 123456789012, is AWS's documentation placeholder.
