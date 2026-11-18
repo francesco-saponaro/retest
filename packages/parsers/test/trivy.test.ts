@@ -16,6 +16,13 @@ describe("parseTrivyReport", () => {
     expect(r.results).toHaveLength(3);
   });
 
+  it("names the image by its tag when Trivy read a saved copy of it (docker save), not by the file", () => {
+    const fromTar = JSON.parse(image) as Record<string, unknown>;
+    fromTar.ArtifactName = "/out/juice-shop-image.tar";
+    fromTar.Metadata = { ...(fromTar.Metadata as object), RepoTags: ["bkimminich/juice-shop:v17.1.1"] };
+    expect(parseTrivyReport(JSON.stringify(fromTar)).artifactName).toBe("bkimminich/juice-shop:v17.1.1");
+  });
+
   it("reads each result: target, class, type, and its vulnerabilities", () => {
     expect(r.results.map((x) => [x.target, x.class, x.type, x.vulnerabilities.length])).toEqual([
       ["bkimminich/juice-shop:v17.1.1 (alpine 3.20.3)", "os-pkgs", "alpine", 2],

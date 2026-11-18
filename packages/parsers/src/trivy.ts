@@ -60,6 +60,7 @@ const ReportSchema = z
     Metadata: z
       .object({
         OS: z.object({ Family: z.string().optional(), Name: z.string().optional() }).loose().optional(),
+        RepoTags: z.array(z.string()).optional(),
       })
       .loose()
       .optional(),
@@ -183,7 +184,8 @@ export function parseTrivyReport(text: string): TrivyReport {
   const r = parsed.data;
   const report: TrivyReport = {
     schemaVersion: r.SchemaVersion,
-    artifactName: r.ArtifactName,
+    // Scanning a saved image (`trivy image --input juice-shop.tar`) names the file, not the image; the tag is in the metadata.
+    artifactName: /\.tar(\.gz)?$/.test(r.ArtifactName) && r.Metadata?.RepoTags?.[0] ? r.Metadata.RepoTags[0] : r.ArtifactName,
     results: r.Results.map((res) => {
       const result: TrivyResult = { target: res.Target, vulnerabilities: (res.Vulnerabilities ?? []).map(toVulnerability) };
       if (res.Class) result.class = res.Class;
